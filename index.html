@@ -119,7 +119,7 @@
     </div>
 
     <div class="card">
-      <h2>2. Visualização das cartas de correção </h2>
+      <h2>2. Visualização Cartas de correção </h2>
       <div style="overflow-x: auto;">
         <table id="tabelaVisualizacao">
           <thead>
@@ -173,10 +173,10 @@
 
           let nota = "";
           let serie = "";
-          if (chNFe.length >= 18) {
-            const ultimos18 = chNFe.slice(-18);
-            nota = ultimos18.slice(0, 8);
-            serie = ultimos18[8] || "";
+          if (chNFe.length >= 22) {
+            const ultimos22 = chNFe.slice(-22);
+            serie = ultimos22.slice(0, 3);         // Pega os 3 primeiros dos últimos 22
+            nota = ultimos22.slice(3, 11);         // Pega os próximos 8 dígitos
           }
 
           if (cnpj && chNFe && descEvento) {
