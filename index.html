@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>RLX - XML para Excel</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
@@ -27,8 +27,14 @@
     header {
       background-color: var(--primary);
       color: white;
-      padding: 20px;
       text-align: center;
+      padding: 30px 20px;
+    }
+
+    header img {
+      max-height: 80px;
+      margin-bottom: 10px;
+      filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
     }
 
     main {
@@ -64,7 +70,6 @@
       color: white;
       border: none;
       padding: 12px 20px;
-      margin-right: 10px;
       margin-top: 10px;
       border-radius: 5px;
       cursor: pointer;
@@ -78,35 +83,37 @@
     table {
       width: 100%;
       border-collapse: collapse;
+      margin-top: 20px;
     }
 
     th, td {
       padding: 10px;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid #ccc;
       text-align: left;
     }
 
     th {
-      background-color: var(--primary);
-      color: white;
+      background-color: #e0f0ff;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #888;
+      margin: 20px 0;
     }
 
     @media (max-width: 600px) {
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-
-      th {
-        position: sticky;
-        top: 0;
+      table {
+        font-size: 12px;
       }
     }
   </style>
 </head>
 <body>
-
   <header>
-    <h1>RLX Fluidos e Refrigerantes</h1>
+    <img src="a77d553a-a458-4e86-a05f-da962257ae5a.png" alt="RLX Logo">
+    <h1 style="color: white;">RLX Fluidos e Refrigerantes</h1>
     <p><strong>Conversor de XML para Excel</strong></p>
   </header>
 
@@ -119,30 +126,32 @@
     </div>
 
     <div class="card">
-      <h2>2. Visualização Cartas de correção </h2>
-      <div style="overflow-x: auto;">
-        <table id="tabelaVisualizacao">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>CNPJ</th>
-              <th>Nota</th>
-              <th>Série</th>
-              <th>Motivo</th>
-              <th>Descrição</th>
-            </tr>
-          </thead>
-          <tbody id="corpoTabela"></tbody>
-        </table>
-      </div>
+      <h2>2. Visualização dos Dados</h2>
+      <table id="tabelaDados">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Nota</th>
+            <th>Série</th>
+            <th>CNPJ</th>
+            <th>Motivo</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </main>
 
+  <footer>
+    Produzido por Lm2 - Felipe Lima
+  </footer>
+
   <script>
-    let dadosCancelamentos = [];
+    let dados = [];
 
     function processarArquivos() {
-      dadosCancelamentos = [];
+      dados = [];
       const files = document.getElementById('xmlFiles').files;
       if (!files.length) {
         alert("Selecione arquivos XML.");
@@ -150,49 +159,42 @@
       }
 
       let lidos = 0;
-
       for (const file of files) {
         const reader = new FileReader();
-        reader.onload = function (e) {
+        reader.onload = function(e) {
           const xml = e.target.result;
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(xml, "application/xml");
 
-          const cnpj = xmlDoc.getElementsByTagName("CNPJ")[0]?.textContent || "";
-          const xCorrecao = xmlDoc.getElementsByTagName("xCorrecao")[0]?.textContent || "";
-          const descEvento = xmlDoc.getElementsByTagName("descEvento")[0]?.textContent || "";
-          const chNFe = xmlDoc.getElementsByTagName("chNFe")[0]?.textContent || "";
-          const dhEvento = xmlDoc.getElementsByTagName("dhEvento")[0]?.textContent || "";
+          const eventos = xmlDoc.getElementsByTagName("evento");
 
-          let dataEvento = "";
-          try {
-            dataEvento = new Date(dhEvento).toLocaleDateString();
-          } catch (err) {
-            dataEvento = "-";
-          }
+          for (let i = 0; i < eventos.length; i++) {
+            const cnpj = eventos[i].getElementsByTagName("CNPJ")[0]?.textContent || "";
+            const chNFe = eventos[i].getElementsByTagName("chNFe")[0]?.textContent || "";
+            const descEvento = eventos[i].getElementsByTagName("descEvento")[0]?.textContent || "";
+            const xCorrecao = eventos[i].getElementsByTagName("xCorrecao")[0]?.textContent || "";
+            const dhEvento = eventos[i].getElementsByTagName("dhEvento")[0]?.textContent || "";
 
-          let nota = "";
-          let serie = "";
-          if (chNFe.length >= 22) {
-            const ultimos22 = chNFe.slice(-22);
-            serie = ultimos22.slice(0, 3);         // Pega os 3 primeiros dos últimos 22
-            nota = ultimos22.slice(3, 11);         // Pega os próximos 8 dígitos
-          }
+            const data = dhEvento.split("T")[0];
+            const chaveFinal = chNFe.slice(-22);
+            const nota = chaveFinal.slice(3, 11);
+            const serie = chaveFinal.slice(0, 3);
 
-          if (cnpj && chNFe && descEvento) {
-            dadosCancelamentos.push({
-              data: dataEvento,
-              nota: nota,
-              serie: serie,
-              cnpj,
-              motivo: xCorrecao,
-              descricao: descEvento
-            });
+            if (chNFe) {
+              dados.push({
+                data,
+                nota,
+                serie,
+                cnpj,
+                motivo: descEvento,
+                descricao: xCorrecao
+              });
+            }
           }
 
           lidos++;
           if (lidos === files.length) {
-            atualizarTabela();
+            renderizarTabela();
             alert("Arquivos processados com sucesso!");
           }
         };
@@ -200,42 +202,40 @@
       }
     }
 
-    function atualizarTabela() {
-      const tbody = document.getElementById('corpoTabela');
+    function renderizarTabela() {
+      const tbody = document.querySelector("#tabelaDados tbody");
       tbody.innerHTML = "";
-
-      const ordenado = [...dadosCancelamentos].sort((a, b) => a.cnpj.localeCompare(b.cnpj));
-
-      for (const item of ordenado) {
+      dados.sort((a, b) => a.data.localeCompare(b.data));
+      dados.forEach(d => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${item.data}</td>
-          <td>${item.cnpj}</td>
-          <td>${item.nota}</td>
-          <td>${item.serie}</td>
-          <td>${item.motivo}</td>
-          <td>${item.descricao}</td>
+          <td>${d.data}</td>
+          <td>${d.nota}</td>
+          <td>${d.serie}</td>
+          <td>${d.cnpj}</td>
+          <td>${d.motivo}</td>
+          <td>${d.descricao}</td>
         `;
         tbody.appendChild(tr);
-      }
+      });
     }
 
     function exportarExcel() {
-      if (!dadosCancelamentos.length) {
+      if (!dados.length) {
         alert("Nenhum dado disponível para exportar.");
         return;
       }
 
-      const wsData = [["Data", "CNPJ", "Nota", "Série", "Motivo", "Descrição"]];
-      dadosCancelamentos.forEach(d => {
-        wsData.push([d.data, d.cnpj, d.nota, d.serie, d.motivo, d.descricao]);
+      const wsData = [["Data", "Nota", "Série", "CNPJ", "Motivo", "Descrição"]];
+      dados.forEach(d => {
+        wsData.push([d.data, d.nota, d.serie, d.cnpj, d.motivo, d.descricao]);
       });
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Cancelamentos");
+      XLSX.utils.book_append_sheet(wb, ws, "Notas");
 
-      XLSX.writeFile(wb, "cancelamentos_rlx.xlsx");
+      XLSX.writeFile(wb, "notas_rlx.xlsx");
     }
   </script>
 </body>
