@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>RLX - XML para Excel</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #0071bc;
+      --secondary: #00b050;
+      --bg: #f5fafd;
+      --text: #333;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg);
+      font-family: 'Segoe UI', sans-serif;
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: var(--primary);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    main {
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    h1, h2 {
+      color: var(--primary);
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    input[type="file"] {
+      padding: 10px;
+      border: 2px dashed var(--primary);
+      background: #fff;
+      width: 100%;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button {
+      background-color: var(--secondary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      margin-right: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #009344;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+
+    th {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    @media (max-width: 600px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>RLX Fluidos e Refrigerantes</h1>
+    <p><strong>Conversor de XML para Excel</strong></p>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>1. Selecione seus arquivos XML</h2>
+      <input type="file" id="xmlFiles" multiple accept=".xml">
+      <button onclick="processarArquivos()">Processar XMLs</button>
+      <button onclick="exportarExcel()">Exportar para Excel</button>
+    </div>
+
+    <div class="card">
+      <h2>2. Visualização das cartas de correção </h2>
+      <div style="overflow-x: auto;">
+        <table id="tabelaVisualizacao">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>CNPJ</th>
+              <th>Nota</th>
+              <th>Série</th>
+              <th>Motivo</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabela"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let dadosCancelamentos = [];
+
+    function processarArquivos() {
+      dadosCancelamentos = [];
+      const files = document.getElementById('xmlFiles').files;
+      if (!files.length) {
+        alert("Selecione arquivos XML.");
+        return;
+      }
+
+      let lidos = 0;
+
+      for (const file of files) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const xml = e.target.result;
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xml, "application/xml");
+
+          const cnpj = xmlDoc.getElementsByTagName("CNPJ")[0]?.textContent || "";
+          const xCorrecao = xmlDoc.getElementsByTagName("xCorrecao")[0]?.textContent || "";
+          const descEvento = xmlDoc.getElementsByTagName("descEvento")[0]?.textContent || "";
+          const chNFe = xmlDoc.getElementsByTagName("chNFe")[0]?.textContent || "";
+          const dhEvento = xmlDoc.getElementsByTagName("dhEvento")[0]?.textContent || "";
+
+          let dataEvento = "";
+          try {
+            dataEvento = new Date(dhEvento).toLocaleDateString();
+          } catch (err) {
+            dataEvento = "-";
+          }
+
+          let nota = "";
+          let serie = "";
+          if (chNFe.length >= 18) {
+            const ultimos18 = chNFe.slice(-18);
+            nota = ultimos18.slice(0, 8);
+            serie = ultimos18[8] || "";
+          }
+
+          if (cnpj && chNFe && descEvento) {
+            dadosCancelamentos.push({
+              data: dataEvento,
+              nota: nota,
+              serie: serie,
+              cnpj,
+              motivo: xCorrecao,
+              descricao: descEvento
+            });
+          }
+
+          lidos++;
+          if (lidos === files.length) {
+            atualizarTabela();
+            alert("Arquivos processados com sucesso!");
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    function atualizarTabela() {
+      const tbody = document.getElementById('corpoTabela');
+      tbody.innerHTML = "";
+
+      const ordenado = [...dadosCancelamentos].sort((a, b) => a.cnpj.localeCompare(b.cnpj));
+
+      for (const item of ordenado) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.data}</td>
+          <td>${item.cnpj}</td>
+          <td>${item.nota}</td>
+          <td>${item.serie}</td>
+          <td>${item.motivo}</td>
+          <td>${item.descricao}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function exportarExcel() {
+      if (!dadosCancelamentos.length) {
+        alert("Nenhum dado disponível para exportar.");
+        return;
+      }
+
+      const wsData = [["Data", "CNPJ", "Nota", "Série", "Motivo", "Descrição"]];
+      dadosCancelamentos.forEach(d => {
+        wsData.push([d.data, d.cnpj, d.nota, d.serie, d.motivo, d.descricao]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Cancelamentos");
+
+      XLSX.writeFile(wb, "cancelamentos_rlx.xlsx");
+    }
+  </script>
+</body>
+</html>
