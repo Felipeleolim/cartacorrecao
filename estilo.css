@@ -133,5 +133,125 @@
     margin-top: 15px;
     font-size: 14px;
     color: var(--cinza-escuro);
+  }body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f7fa;
+    margin: 0;
+    padding: 0;
+    color: #333;
   }
+  
+  header {
+    text-align: center;
+    margin: 30px 0;
+  }
+  
+  header img {
+    max-width: 200px;
+  }
+  
+  .tabs-wrapper {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .tabs {
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  
+  .tab-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+  .tab-btn:hover {
+    background-color: #0056b3;
+  }
+  
+  .tab-btn.active {
+    background-color: #0056b3;
+  }
+  
+  .aba {
+    display: none;
+  }
+  
+  .aba.ativa {
+    display: block;
+  }
+  
+  .card {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    max-width: 1000px;
+    margin: 0 auto 50px;
+    padding: 30px;
+  }
+  
+  h2 {
+    color: #222;
+    margin-bottom: 20px;
+  }
+  
+  label {
+    display: block;
+    margin-bottom: 15px;
+  }
+  
+  input[type="file"] {
+    display: block;
+    margin-top: 8px;
+  }
+  
+  .botoes {
+    margin-top: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .action {
+    background-color: #343a40;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    margin-right: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+  
+  .action:hover {
+    background-color: #23272b;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  th, td {
+    padding: 10px;
+    border: 1px solid #ccc;
+    text-align: left;
+  }
+  
+  th {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  footer {
+    text-align: center;
+    margin-top: 50px;
+    font-size: 12px;
+    color: #666;
+  }
+  
   
