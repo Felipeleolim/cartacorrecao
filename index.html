@@ -3,23 +3,124 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Carta de Correção e Cancelamento</title>
+  <title>Carta de Correção, Cancelamento e Devoluções</title>
   <link rel="stylesheet" href="estilo.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f7fa;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    header {
+      text-align: center;
+      margin: 30px 0;
+    }
+    header img {
+      max-width: 200px;
+    }
+    .tabs-wrapper {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .tabs {
+      display: inline-block;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .tab-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .tab-btn:hover {
+      background-color: #0056b3;
+    }
+    .tab-btn.active {
+      background-color: #0056b3;
+    }
+    .aba {
+      display: none;
+    }
+    .aba.ativa {
+      display: block;
+    }
+    .card {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      max-width: 1000px;
+      margin: 0 auto 50px;
+      padding: 30px;
+    }
+    h2 {
+      color: #222;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 15px;
+    }
+    input[type="file"] {
+      display: block;
+      margin-top: 8px;
+    }
+    .botoes {
+      margin-top: 15px;
+      margin-bottom: 15px;
+    }
+    .action {
+      background-color: #343a40;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin-right: 10px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .action:hover {
+      background-color: #23272b;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
-  <!-- Logo no topo -->
-  <header style="text-align: center; margin: 30px 0;">
-    <img src="rlxlogo.png" alt="Logo RLX" style="max-width: 200px; height: auto;">
+  <header>
+    <img src="rlxlogo.png" alt="Logo RLX">
   </header>
-
   <main>
     <div class="tabs-wrapper">
       <div class="tabs">
         <button class="tab-btn active" onclick="mostrarAba('carta')">Carta de Correção</button>
         <button class="tab-btn" onclick="mostrarAba('cancelamento')">Cancelamento</button>
+        <button class="tab-btn" onclick="mostrarAba('devolucao')">Devoluções</button>
       </div>
     </div>
 
@@ -64,10 +165,30 @@
         </table>
       </div>
     </section>
+
+    <section id="devolucao" class="aba">
+      <div class="card">
+        <h2>Devoluções</h2>
+        <label>
+          Pasta XML - Devoluções:
+          <input type="file" webkitdirectory directory multiple id="pastaDevolucao">
+        </label>
+        <div class="botoes">
+          <button class="action" onclick="processarArquivos(document.getElementById('pastaDevolucao').files, 'devolucao')">Ler XML</button>
+          <button class="action" onclick="exportar('devolucao')">Exportar</button>
+        </div>
+        <p id="contadorDevolucao"></p>
+        <table id="tabelaDevolucao">
+          <thead>
+            <tr><th>CNPJ</th><th>Nome</th><th>Nota</th><th>Série</th><th>Data</th><th>Valor produto</th><th>Municipio</th><th>natOp</th><th>Descrição</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
-  <!-- Rodapé -->
-  <footer style="text-align: center; margin-top: 50px; font-size: 12px; color: #666;">
+  <footer>
     Produzido por <strong>LM2 - Felipe Lima</strong>
   </footer>
 
