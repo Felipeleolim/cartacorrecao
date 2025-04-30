@@ -1,82 +1,83 @@
-function formatarDataISO(dataISO) {
-    if (!dataISO) return '';
-    const data = new Date(dataISO);
-    const dia = String(data.getDate()).padStart(2, '0');
-    const mes = String(data.getMonth() + 1).padStart(2, '0');
-    const ano = data.getFullYear();
-    return `${dia}/${mes}/${ano}`;
-  }
-  function mostrarAba(abaId) {
-    const abas = document.querySelectorAll('.aba');
-    const botoes = document.querySelectorAll('.tab-btn');
-  
-    abas.forEach(aba => aba.classList.remove('ativa'));
-    botoes.forEach(btn => btn.classList.remove('active'));
-  
+function mostrarAba(abaId) {
+    document.querySelectorAll('.aba').forEach(aba => aba.classList.remove('ativa'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(abaId).classList.add('ativa');
-    document.querySelector(`.tab-btn[onclick*="${abaId}"]`).classList.add('active');
+    document.querySelector(`[onclick="mostrarAba('${abaId}')"]`).classList.add('active');
+  }
+  
+  function processarArquivos(arquivos, tipo) {
+    const tabela = document.querySelector(`#tabela${capitalize(tipo)} tbody`);
+    const contador = document.getElementById(`contador${capitalize(tipo)}`);
+    tabela.innerHTML = '';
+    let count = 0;
+  
+    Array.from(arquivos).forEach(arquivo => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const xml = new DOMParser().parseFromString(reader.result, 'text/xml');
+        const data = xml.querySelector('dhEmi')?.textContent?.substring(0, 10);
+        const nota = xml.querySelector('ide > nNF')?.textContent;
+        const serie = xml.querySelector('ide > serie')?.textContent;
+        const cnpj = xml.querySelector('emit > CNPJ')?.textContent;
+        const motivo = xml.querySelector('infEvento > xMotivo')?.textContent || '';
+        const descricao = xml.querySelector('infEvento > detEvento > xCorrecao')?.textContent || xml.querySelector('infEvento > detEvento > descEvento')?.textContent || '';
+        const nome = xml.querySelector('emit > xNome')?.textContent || '';
+        const vprod = xml.querySelector('total > ICMSTot > vProd')?.textContent || '';
+        const xmun = xml.querySelector('dest > xMun')?.textContent || '';
+        const natOp = xml.querySelector('ide > natOp')?.textContent || '';
+        const infcpl = xml.querySelector('infAdic > infCpl')?.textContent || '';
+  
+        if (tipo === 'devolucao') {
+          tabela.innerHTML += `
+            <tr>
+              <td>${formatarCNPJ(cnpj)}</td>
+              <td>${nome}</td>
+              <td>${nota}</td>
+              <td>${serie}</td>
+              <td>${formatarData(data)}</td>
+              <td>${vprod}</td>
+              <td>${xmun}</td>
+              <td>${natOp}</td>
+              <td>${infcpl}</td>
+            </tr>
+          `;
+        } else {
+          tabela.innerHTML += `
+            <tr>
+              <td>${formatarData(data)}</td>
+              <td>${nota}</td>
+              <td>${serie}</td>
+              <td>${formatarCNPJ(cnpj)}</td>
+              <td>${motivo}</td>
+              <td>${descricao}</td>
+            </tr>
+          `;
+        }
+        count++;
+        contador.textContent = `${count} arquivos processados.`;
+      };
+      reader.readAsText(arquivo);
+    });
+  }
+  
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+  
+  function formatarCNPJ(cnpj) {
+    return cnpj?.replace(/^(.{2})(.{3})(.{3})(.{4})(.{2})$/, '$1.$2.$3/$4-$5');
+  }
+  
+  function formatarData(data) {
+    if (!data) return '';
+    const [ano, mes, dia] = data.split('-');
+    return `${dia}/${mes}/${ano}`;
   }
   
   function exportar(tipo) {
-    const tabela = document.querySelector(`#tabela${tipo === 'carta' ? 'Carta' : 'Cancelamento'}`);
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(tabela);
-    XLSX.utils.book_append_sheet(wb, ws, tipo === 'carta' ? 'Carta de Correção' : 'Cancelamento');
-  
-    const nomeArquivo = tipo === 'carta' ? 'CartaDeCorrecao.xlsx' : 'Cancelamento.xlsx';
-    XLSX.writeFile(wb, nomeArquivo);
-  }
-  
-  function processarArquivos(files, tipo) {
-    const tabela = document.querySelector(`#tabela${tipo === 'carta' ? 'Carta' : 'Cancelamento'} tbody`);
-    const contador = document.querySelector(`#contador${tipo === 'carta' ? 'Carta' : 'Cancelamento'}`);
-    tabela.innerHTML = '';
-    let total = 0;
-  
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const xml = new DOMParser().parseFromString(e.target.result, 'text/xml');
-        const tpEvento = xml.querySelector('tpEvento')?.textContent;
-  
-        if ((tipo === 'carta' && tpEvento === '110110') || (tipo === 'cancelamento' && tpEvento === '110111')) {
-          const dhEvento = xml.querySelector('dhEvento')?.textContent || '';
-          const dataFormatada = formatarDataISO(dhEvento);
-  
-          const chNFe = xml.querySelector('chNFe')?.textContent || '';
-          const nota = chNFe.substring(25, 34);
-          const serie = chNFe.substring(22, 25);
-          const cnpj = chNFe.substring(6, 20);
-  
-          let motivo = '';
-          let descricao = '';
-  
-          if (tipo === 'carta') {
-            motivo = 'Carta de Correção';
-            descricao = xml.querySelector('xCorrecao')?.textContent || '';
-          } else if (tipo === 'cancelamento') {
-            motivo = 'Cancelamento';
-            descricao = xml.querySelector('xJust')?.textContent || '';
-          }
-  
-          const tr = `
-            <tr>
-              <td>${dataFormatada}</td>
-              <td>${nota}</td>
-              <td>${serie}</td>
-              <td>${cnpj}</td>
-              <td>${motivo}</td>
-              <td>${descricao}</td>
-            </tr>`;
-          tabela.innerHTML += tr;
-          total++;
-        }
-      };
-      reader.readAsText(file);
-    });
-  
-    setTimeout(() => {
-      contador.textContent = `Total de XMLs lidos: ${tabela.rows.length}`;
-    }, 300);
+    const ws = XLSX.utils.table_to_sheet(document.querySelector(`#tabela${capitalize(tipo)}`));
+    XLSX.utils.book_append_sheet(wb, ws, capitalize(tipo));
+    XLSX.writeFile(wb, `${tipo}.xlsx`);
   }
   
