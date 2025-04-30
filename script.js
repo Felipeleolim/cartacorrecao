@@ -1,53 +1,71 @@
-function mostrarAba(aba) {
-    document.querySelectorAll('.aba').forEach(a => a.classList.remove('ativa'));
-    document.getElementById(aba).classList.add('ativa');
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-btn')[aba === 'carta' ? 0 : 1].classList.add('active');
+function formatarDataISO(dataISO) {
+    if (!dataISO) return '';
+    const data = new Date(dataISO);
+    const dia = String(data.getDate()).padStart(2, '0');
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const ano = data.getFullYear();
+    return `${dia}/${mes}/${ano}`;
+  }
+  function exportar(tipo) {
+    const tabela = document.querySelector(`#tabela${tipo === 'carta' ? 'Carta' : 'Cancelamento'}`);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(tabela);
+    XLSX.utils.book_append_sheet(wb, ws, tipo === 'carta' ? 'Carta de Correção' : 'Cancelamento');
+  
+    const nomeArquivo = tipo === 'carta' ? 'CartaDeCorrecao.xlsx' : 'Cancelamento.xlsx';
+    XLSX.writeFile(wb, nomeArquivo);
   }
   
   function processarArquivos(files, tipo) {
     const tabela = document.querySelector(`#tabela${tipo === 'carta' ? 'Carta' : 'Cancelamento'} tbody`);
-    const contador = document.getElementById(`contador${tipo === 'carta' ? 'Carta' : 'Cancelamento'}`);
+    const contador = document.querySelector(`#contador${tipo === 'carta' ? 'Carta' : 'Cancelamento'}`);
     tabela.innerHTML = '';
-    let contadorLinhas = 0;
+    let total = 0;
   
     Array.from(files).forEach(file => {
       const reader = new FileReader();
       reader.onload = e => {
         const xml = new DOMParser().parseFromString(e.target.result, 'text/xml');
-        const dhEvento = xml.querySelector('dhEvento')?.textContent || '';
-        const xCorrecao = xml.querySelector('xCorrecao')?.textContent || '';
-        const xJust = xml.querySelector('xJust')?.textContent || '';
-        const motivo = xCorrecao || xJust || '';
+        const tpEvento = xml.querySelector('tpEvento')?.textContent;
   
-        if ((tipo === 'carta' && !motivo.toLowerCase().includes('carta de corre')) ||
-            (tipo === 'cancelamento' && !motivo.toLowerCase().includes('cancelamento'))) return;
+        if ((tipo === 'carta' && tpEvento === '110110') || (tipo === 'cancelamento' && tpEvento === '110111')) {
+          const dhEvento = xml.querySelector('dhEvento')?.textContent || '';
+          const dataFormatada = formatarDataISO(dhEvento);
   
-        const chNFe = xml.querySelector('chNFe')?.textContent || '';
-        const cnpj = chNFe.substring(6, 20);
-        const serie = chNFe.substring(22, 25);
-        const nota = chNFe.substring(25, 34);
+          const chNFe = xml.querySelector('chNFe')?.textContent || '';
+          const nota = chNFe.substring(25, 34);
+          const serie = chNFe.substring(22, 25);
+          const cnpj = chNFe.substring(6, 20);
   
-        const tr = `<tr><td>${dhEvento}</td><td>${nota}</td><td>${serie}</td><td>${cnpj}</td><td>${motivo}</td><td>${tipo === 'carta' ? xCorrecao : xJust}</td></tr>`;
-        tabela.innerHTML += tr;
-        contadorLinhas++;
-        contador.textContent = `${contadorLinhas} registro(s) carregado(s).`;
+          let motivo = '';
+          let descricao = '';
+  
+          if (tipo === 'carta') {
+            motivo = 'Carta de Correção';
+            descricao = xml.querySelector('xCorrecao')?.textContent || '';
+          } else if (tipo === 'cancelamento') {
+            motivo = 'Cancelamento';
+            descricao = xml.querySelector('xJust')?.textContent || '';
+          }
+  
+          const tr = `
+            <tr>
+              <td>${dataFormatada}</td>
+              <td>${nota}</td>
+              <td>${serie}</td>
+              <td>${cnpj}</td>
+              <td>${motivo}</td>
+              <td>${descricao}</td>
+            </tr>`;
+          tabela.innerHTML += tr;
+          total++;
+        }
       };
       reader.readAsText(file);
     });
-  }
   
-  function exportar(tipo) {
-    const formato = 'excel'; // você pode adaptar para escolher entre excel ou pdf
-    const tabela = document.querySelector(`#tabela${tipo === 'carta' ? 'Carta' : 'Cancelamento'}`);
-    if (formato === 'excel') {
-      const wb = XLSX.utils.table_to_book(tabela);
-      XLSX.writeFile(wb, `export_${tipo}.xlsx`);
-    } else if (formato === 'pdf') {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.autoTable({ html: tabela });
-      doc.save(`export_${tipo}.pdf`);
-    }
+    setTimeout(() => {
+      contador.textContent = `Total de XMLs lidos: ${tabela.rows.length}`;
+    }, 300);
   }
   
