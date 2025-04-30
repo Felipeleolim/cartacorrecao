@@ -6,6 +6,17 @@ function formatarDataISO(dataISO) {
     const ano = data.getFullYear();
     return `${dia}/${mes}/${ano}`;
   }
+  function mostrarAba(abaId) {
+    const abas = document.querySelectorAll('.aba');
+    const botoes = document.querySelectorAll('.tab-btn');
+  
+    abas.forEach(aba => aba.classList.remove('ativa'));
+    botoes.forEach(btn => btn.classList.remove('active'));
+  
+    document.getElementById(abaId).classList.add('ativa');
+    document.querySelector(`.tab-btn[onclick*="${abaId}"]`).classList.add('active');
+  }
+  
   function exportar(tipo) {
     const tabela = document.querySelector(`#tabela${tipo === 'carta' ? 'Carta' : 'Cancelamento'}`);
     const wb = XLSX.utils.book_new();
