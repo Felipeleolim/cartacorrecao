@@ -37,6 +37,27 @@
       color: white;
     }
 
+    nav {
+      background: #fff;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    nav button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    nav button.active {
+      background: var(--secondary);
+    }
+
     main {
       background-color: var(--bg);
       padding: 20px;
@@ -63,19 +84,13 @@
       cursor: pointer;
     }
 
-    button {
+    button.export {
       background-color: var(--secondary);
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      margin-top: 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
+      margin-left: 10px;
     }
 
     button:hover {
-      background-color: #009344;
+      opacity: 0.9;
     }
 
     table {
@@ -104,6 +119,10 @@
       padding: 10px;
       color: white;
     }
+
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -113,49 +132,96 @@
     <p><strong>Conversor de XML para Excel</strong></p>
   </header>
 
+  <nav>
+    <button class="active" onclick="alternarAba('correcao')">Carta de Correção</button>
+    <button onclick="alternarAba('cancelamento')">Cancelamento</button>
+  </nav>
+
   <main>
-    <div class="card">
-      <h2>1. Selecione os arquivos XML</h2>
-      <input type="file" id="xmlFiles" multiple accept=".xml">
-      <button onclick="processarArquivos()">Processar XMLs</button>
-      <button onclick="exportarExcel()">Exportar para Excel</button>
+    <!-- Aba Carta de Correção -->
+    <div id="correcao" class="aba">
+      <div class="card">
+        <h2>1. Selecione os arquivos XML - Carta de Correção</h2>
+        <input type="file" id="xmlFilesCorrecao" multiple accept=".xml">
+        <button onclick="processarArquivos('correcao')">Processar XMLs</button>
+        <button class="export" onclick="exportarExcelCorrecao()">Exportar para Excel</button>
+      </div>
+
+      <div class="card">
+        <h2>2. Resultados - Carta de Correção</h2>
+        <table id="tabelaResultados">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Nota</th>
+              <th>Série</th>
+              <th>CNPJ</th>
+              <th>Motivo</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
 
-    <div class="card">
-      <h2>2. Resultados</h2>
-      <table id="tabelaResultados">
-        <thead>
-          <tr>
-            <th>Data</th>
-            <th>Nota</th>
-            <th>Série</th>
-            <th>CNPJ</th>
-            <th>Motivo</th>
-            <th>Descrição</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <!-- Aba Cancelamento -->
+    <div id="cancelamento" class="aba hidden">
+      <div class="card">
+        <h2>1. Selecione os arquivos XML - Cancelamento</h2>
+        <input type="file" id="xmlFilesCancelamento" multiple accept=".xml">
+        <button onclick="processarArquivos('cancelamento')">Processar XMLs</button>
+        <button class="export" onclick="exportarExcelCancelamento()">Exportar para Excel</button>
+      </div>
+
+      <div class="card">
+        <h2>2. Resultados - Cancelamento</h2>
+        <table id="tabelaCancelamento">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Nota</th>
+              <th>Série</th>
+              <th>CNPJ</th>
+              <th>Motivo</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </main>
 
   <footer>Produzido por Lm2 - Felipe Lima</footer>
 
   <script>
-    let dados = [];
+    let dadosCorrecao = [];
+    let dadosCancelamento = [];
+
+    function alternarAba(nome) {
+      document.querySelectorAll(".aba").forEach(el => el.classList.add("hidden"));
+      document.getElementById(nome).classList.remove("hidden");
+
+      document.querySelectorAll("nav button").forEach(btn => btn.classList.remove("active"));
+      document.querySelector(`nav button[onclick*="${nome}"]`).classList.add("active");
+    }
 
     function formatarData(dataISO) {
       const [ano, mes, dia] = dataISO.split("T")[0].split("-");
       return `${dia}/${mes}/${ano}`;
     }
 
-    function processarArquivos() {
-      dados = [];
-      const files = document.getElementById('xmlFiles').files;
+    function processarArquivos(tipo) {
+      const inputId = tipo === "correcao" ? "xmlFilesCorrecao" : "xmlFilesCancelamento";
+      const files = document.getElementById(inputId).files;
       if (!files.length) {
         alert("Selecione arquivos XML.");
         return;
       }
+
+      if (tipo === "correcao") dadosCorrecao = [];
+      if (tipo === "cancelamento") dadosCancelamento = [];
 
       let lidos = 0;
       for (const file of files) {
@@ -169,29 +235,29 @@
           for (let i = 0; i < eventos.length; i++) {
             const cnpj = xmlDoc.getElementsByTagName("CNPJ")[0]?.textContent || '';
             const xCorrecao = eventos[i].getElementsByTagName("xCorrecao")[0]?.textContent || '';
+            const xJust = eventos[i].getElementsByTagName("xJust")[0]?.textContent || '';
             const descEvento = eventos[i].getElementsByTagName("descEvento")[0]?.textContent || '';
             const dhEvento = xmlDoc.getElementsByTagName("dhEvento")[0]?.textContent || '';
             const chNFe = xmlDoc.getElementsByTagName("chNFe")[0]?.textContent || '';
 
             const chaveFinal = chNFe.slice(-22);
-            const nota = chaveFinal.slice(3, 12); // 9 dígitos
+            const nota = chaveFinal.slice(3, 12);
             const serie = chaveFinal.slice(0, 3);
+            const dataFormatada = dhEvento ? formatarData(dhEvento) : '';
 
-            if (chNFe && dhEvento) {
-              dados.push({
-                data: formatarData(dhEvento),
-                nota,
-                serie,
-                cnpj,
-                motivo: descEvento,
-                descricao: xCorrecao
-              });
+            if (tipo === "correcao" && xCorrecao) {
+              dadosCorrecao.push({ data: dataFormatada, nota, serie, cnpj, motivo: descEvento, descricao: xCorrecao });
+            }
+
+            if (tipo === "cancelamento" && xJust) {
+              dadosCancelamento.push({ data: dataFormatada, nota, serie, cnpj, motivo: descEvento, descricao: xJust });
             }
           }
 
           lidos++;
           if (lidos === files.length) {
-            preencherTabela();
+            if (tipo === "correcao") preencherTabela("tabelaResultados", dadosCorrecao);
+            if (tipo === "cancelamento") preencherTabela("tabelaCancelamento", dadosCancelamento);
             alert("Arquivos processados com sucesso!");
           }
         };
@@ -199,8 +265,8 @@
       }
     }
 
-    function preencherTabela() {
-      const tbody = document.querySelector("#tabelaResultados tbody");
+    function preencherTabela(idTabela, dados) {
+      const tbody = document.querySelector(`#${idTabela} tbody`);
       tbody.innerHTML = "";
       dados.sort((a, b) => {
         const da = a.data.split("/").reverse().join("-");
@@ -222,12 +288,17 @@
       }
     }
 
-    function exportarExcel() {
-      if (!dados.length) {
-        alert("Nenhum dado disponível para exportar.");
-        return;
-      }
+    function exportarExcelCorrecao() {
+      if (!dadosCorrecao.length) return alert("Nenhum dado para exportar.");
+      exportarParaExcel(dadosCorrecao, "carta_correcao.xlsx", "Carta de Correcao");
+    }
 
+    function exportarExcelCancelamento() {
+      if (!dadosCancelamento.length) return alert("Nenhum dado para exportar.");
+      exportarParaExcel(dadosCancelamento, "cancelamento.xlsx", "Cancelamento");
+    }
+
+    function exportarParaExcel(dados, nomeArquivo, nomeAba) {
       const wsData = [["Data", "Nota", "Série", "CNPJ", "Motivo", "Descrição"]];
       dados.forEach(item => {
         wsData.push([item.data, item.nota, item.serie, item.cnpj, item.motivo, item.descricao]);
@@ -235,8 +306,8 @@
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Cancelamentos");
-      XLSX.writeFile(wb, "notas_canceladas.xlsx");
+      XLSX.utils.book_append_sheet(wb, ws, nomeAba);
+      XLSX.writeFile(wb, nomeArquivo);
     }
   </script>
 </body>
