@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carta de Correção e Cancelamento</title>
+  <link rel="stylesheet" href="estilo.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <!-- Logo no topo -->
+  <header style="text-align: center; margin-bottom: 30px;">
+    <img src="rlxlogo.png" alt="Logo RLX" style="max-width: 200px; height: auto;">
+  </header>
+
+  <main>
+    <div class="tabs-wrapper">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="mostrarAba('carta')">Carta de Correção</button>
+        <button class="tab-btn" onclick="mostrarAba('cancelamento')">Cancelamento</button>
+      </div>
+    </div>
+
+    <section id="carta" class="aba ativa">
+      <div class="card">
+        <h2>Carta de Correção</h2>
+        <label>
+          Pasta XML - Carta de Correção:
+          <input type="file" webkitdirectory directory multiple id="pastaCarta" onchange="processarArquivos(this.files, 'carta')">
+        </label>
+        <button class="action" onclick="exportar('carta')">Exportar</button>
+        <p id="contadorCarta"></p>
+        <table id="tabelaCarta">
+          <thead>
+            <tr><th>Data</th><th>Nota</th><th>Série</th><th>CNPJ</th><th>Motivo</th><th>Descrição</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="cancelamento" class="aba">
+      <div class="card">
+        <h2>Cancelamento</h2>
+        <label>
+          Pasta XML - Cancelamento:
+          <input type="file" webkitdirectory directory multiple id="pastaCancelamento" onchange="processarArquivos(this.files, 'cancelamento')">
+        </label>
+        <button class="action" onclick="exportar('cancelamento')">Exportar</button>
+        <p id="contadorCancelamento"></p>
+        <table id="tabelaCancelamento">
+          <thead>
+            <tr><th>Data</th><th>Nota</th><th>Série</th><th>CNPJ</th><th>Motivo</th><th>Descrição</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Rodapé -->
+  <footer style="text-align: center; margin-top: 50px; font-size: 12px; color: #666;">
+    Produzido por <strong>LM2 - Felipe Lima</strong>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
