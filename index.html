@@ -11,7 +11,7 @@
 </head>
 <body>
   <!-- Logo no topo -->
-  <header style="text-align: center; margin-bottom: 30px;">
+  <header style="text-align: center; margin: 30px 0;">
     <img src="rlxlogo.png" alt="Logo RLX" style="max-width: 200px; height: auto;">
   </header>
 
@@ -28,9 +28,12 @@
         <h2>Carta de Correção</h2>
         <label>
           Pasta XML - Carta de Correção:
-          <input type="file" webkitdirectory directory multiple id="pastaCarta" onchange="processarArquivos(this.files, 'carta')">
+          <input type="file" webkitdirectory directory multiple id="pastaCarta">
         </label>
-        <button class="action" onclick="exportar('carta')">Exportar</button>
+        <div class="botoes">
+          <button class="action" onclick="processarArquivos(document.getElementById('pastaCarta').files, 'carta')">Ler XML</button>
+          <button class="action" onclick="exportar('carta')">Exportar</button>
+        </div>
         <p id="contadorCarta"></p>
         <table id="tabelaCarta">
           <thead>
@@ -46,9 +49,12 @@
         <h2>Cancelamento</h2>
         <label>
           Pasta XML - Cancelamento:
-          <input type="file" webkitdirectory directory multiple id="pastaCancelamento" onchange="processarArquivos(this.files, 'cancelamento')">
+          <input type="file" webkitdirectory directory multiple id="pastaCancelamento">
         </label>
-        <button class="action" onclick="exportar('cancelamento')">Exportar</button>
+        <div class="botoes">
+          <button class="action" onclick="processarArquivos(document.getElementById('pastaCancelamento').files, 'cancelamento')">Ler XML</button>
+          <button class="action" onclick="exportar('cancelamento')">Exportar</button>
+        </div>
         <p id="contadorCancelamento"></p>
         <table id="tabelaCancelamento">
           <thead>
