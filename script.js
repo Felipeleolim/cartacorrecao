@@ -98,7 +98,7 @@ function lerXML(tipo) {
           const nota = chave.slice(25, 34);
           const serie = chave.slice(22, 25);
           const cnpj = xml.querySelector("CNPJ")?.textContent || "";
-          const motivo = xml.querySelector("xMotivo")?.textContent || "";
+          const motivo = xml.querySelector("xCorrecao")?.textContent || "";
           const descricao = tipo === "carta"
             ? xml.querySelector("xCorrecao")?.textContent || ""
             : xml.querySelector("xJust")?.textContent || "";
