@@ -1,106 +1,127 @@
+document.title = "APP RLX LEITOR XML";
+
+// Mostrar/ocultar abas
+function mostrarAba(abaId) {
+  document.querySelectorAll('.aba').forEach(div => div.classList.remove('ativa'));
+  document.getElementById(`aba-${abaId}`).classList.add('ativa');
+
+  document.querySelectorAll('.tabs button').forEach(btn => btn.classList.remove('active'));
+  const index = abaId === 'carta' ? 0 : abaId === 'cancelamento' ? 1 : 2;
+  document.querySelectorAll('.tabs button')[index].classList.add('active');
+}
+
+// SPINNER
+function mostrarSpinner(mostrar) {
+  document.getElementById("spinner").style.display = mostrar ? "flex" : "none";
+}
+
+// Lista de vendedores embutida
 const vendedores = [
-  "Ariana Gallo", "André Godoy", "André Gama", "Anderson Mendes",
-  "Jonas Rocha", "Paulo Henrique", "Israel Gomes", "Marcelo Ilhesca",
-  "Cristiano Alves", "Renata Bernardes"
+  "Sem Vendedor Selecionado",
+  "Ariana Gallo",
+  "André Godoy",
+  "André Gama",
+  "Anderson Mendes",
+  "Jonas Rocha",
+  "Paulo Henrique",
+  "Israel Gomes",
+  "Marcelo Ilhesca",
+  "Cristiano Alves",
+  "Renata Bernardes"
 ];
 
-function mostrarAba(abaId) {
-  document.querySelectorAll('.aba').forEach(aba => aba.classList.remove('ativa'));
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.getElementById(abaId).classList.add('ativa');
-  document.querySelector(`[onclick="mostrarAba('${abaId}')"]`).classList.add('active');
+// Cria o select de vendedor
+function criarSelectVendedor() {
+  const select = document.createElement("select");
+  vendedores.forEach(nome => {
+    const opt = document.createElement("option");
+    opt.value = nome;
+    opt.textContent = nome;
+    select.appendChild(opt);
+  });
+  return select;
 }
 
-function gerarSelectVendedor() {
-  return `<select class="select-vendedor">
-    <option value="">Selecionar</option>
-    ${vendedores.map(nome => `<option value="${nome}">${nome}</option>`).join('')}
-  </select>`;
-}
+// Lê XMLs
+function lerXML(tipo) {
+  const input = document.getElementById(`xml${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`);
+  const files = [...input.files];
+  if (files.length === 0) return;
 
-function processarArquivos(arquivos, tipo) {
-  const tabela = document.querySelector(`#tabela${capitalize(tipo)} tbody`);
-  const contador = document.getElementById(`contador${capitalize(tipo)}`);
-  tabela.innerHTML = '';
-  let count = 0;
+  const tabela = document.querySelector(`#tabela-${tipo} tbody`);
+  tabela.innerHTML = "";
 
-  Array.from(arquivos).forEach(arquivo => {
+  mostrarSpinner(true);
+  let lidos = 0;
+
+  files.forEach(file => {
     const reader = new FileReader();
     reader.onload = () => {
-      const xml = new DOMParser().parseFromString(reader.result, 'text/xml');
-      const data = xml.querySelector('dhEmi')?.textContent?.substring(0, 10);
-      const nota = xml.querySelector('ide > nNF')?.textContent;
-      const serie = xml.querySelector('ide > serie')?.textContent;
-      const cnpj = xml.querySelector('emit > CNPJ')?.textContent;
-      const motivo = xml.querySelector('infEvento > xMotivo')?.textContent || '';
-      const descricao = xml.querySelector('infEvento > detEvento > xCorrecao')?.textContent || xml.querySelector('infEvento > detEvento > descEvento')?.textContent || '';
-      const nome = xml.querySelector('emit > xNome')?.textContent || '';
-      const vprod = xml.querySelector('total > ICMSTot > vProd')?.textContent || '';
-      const xmun = xml.querySelector('dest > xMun')?.textContent || '';
-      const natOp = xml.querySelector('ide > natOp')?.textContent || '';
-      const infcpl = xml.querySelector('infAdic > infCpl')?.textContent || '';
+      try {
+        const xml = new DOMParser().parseFromString(reader.result, "text/xml");
+        if (!xml || xml.getElementsByTagName("parsererror").length > 0) {
+          console.error("Erro ao analisar XML:", file.name);
+          return;
+        }
 
-      if (tipo === 'devolucao') {
-        const novaLinha = document.createElement('tr');
-        novaLinha.innerHTML = `
-          <td>${formatarCNPJ(cnpj)}</td>
-          <td>${nome}</td>
-          <td>${nota}</td>
-          <td>${serie}</td>
-          <td>${formatarData(data)}</td>
-          <td>${vprod}</td>
-          <td>${xmun}</td>
-          <td>${natOp}</td>
-          <td>${infcpl}</td>
-          <td>${gerarSelectVendedor()}</td>
-        `;
-        tabela.appendChild(novaLinha);
-      } else {
-        tabela.innerHTML += `
-          <tr>
-            <td>${formatarData(data)}</td>
+        if (tipo === "devolucao") {
+          const cnpj = xml.querySelector("dest > CNPJ")?.textContent || "";
+          const nome = xml.querySelector("dest > xNome")?.textContent || "";
+          const nota = xml.querySelector("ide > nNF")?.textContent || "";
+          const serie = xml.querySelector("ide > serie")?.textContent || "";
+          const data = xml.querySelector("ide > dhEmi")?.textContent?.slice(0, 10) || "";
+          const valor = xml.querySelector("det > prod > vProd")?.textContent || "";
+          const municipio = xml.querySelector("dest > enderDest > xMun")?.textContent || "";
+          const natOp = xml.querySelector("ide > natOp")?.textContent || "";
+          const descricao = xml.querySelector("infAdic > infCpl")?.textContent || "";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${cnpj}</td>
+            <td>${nome}</td>
             <td>${nota}</td>
             <td>${serie}</td>
-            <td>${formatarCNPJ(cnpj)}</td>
+            <td>${data}</td>
+            <td>${valor}</td>
+            <td>${municipio}</td>
+            <td>${natOp}</td>
+            <td>${descricao}</td>
+          `;
+          const tdVendedor = document.createElement("td");
+          tdVendedor.appendChild(criarSelectVendedor());
+          tr.appendChild(tdVendedor);
+          tabela.appendChild(tr);
+
+        } else {
+          const data = xml.querySelector("dhEvento")?.textContent?.slice(0, 10) || "";
+          const chave = xml.querySelector("chNFe")?.textContent || "";
+          const nota = chave.slice(25, 34);
+          const serie = chave.slice(22, 25);
+          const cnpj = xml.querySelector("CNPJ")?.textContent || "";
+          const motivo = xml.querySelector("xMotivo")?.textContent || "";
+          const descricao = tipo === "carta"
+            ? xml.querySelector("xCorrecao")?.textContent || ""
+            : xml.querySelector("xJust")?.textContent || "";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${data}</td>
+            <td>${nota}</td>
+            <td>${serie}</td>
+            <td>${cnpj}</td>
             <td>${motivo}</td>
             <td>${descricao}</td>
-          </tr>
-        `;
+          `;
+          tabela.appendChild(tr);
+        }
+
+      } catch (e) {
+        console.error("Erro ao processar arquivo:", file.name, e);
       }
 
-      count++;
-      contador.textContent = `${count} arquivos processados.`;
+      lidos++;
+      if (lidos === files.length) mostrarSpinner(false);
     };
-    reader.readAsText(arquivo);
+    reader.readAsText(file);
   });
-}
-
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-function formatarCNPJ(cnpj) {
-  return cnpj?.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-}
-
-function formatarData(data) {
-  if (!data) return '';
-  const [ano, mes, dia] = data.split('-');
-  return `${dia}/${mes}/${ano}`;
-}
-
-function exportar(tipo) {
-  const tabela = document.querySelector(`#tabela${capitalize(tipo)}`);
-  const tempTabela = tabela.cloneNode(true);
-
-  tempTabela.querySelectorAll('select').forEach(select => {
-    const td = document.createElement('td');
-    td.textContent = select.value || 'Não selecionado';
-    select.parentNode.replaceChild(td, select);
-  });
-
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.table_to_sheet(tempTabela);
-  XLSX.utils.book_append_sheet(wb, ws, capitalize(tipo));
-  XLSX.writeFile(wb, `${tipo}.xlsx`);
 }
