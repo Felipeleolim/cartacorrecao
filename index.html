@@ -3,93 +3,87 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Carta de Correção, Cancelamento e Devoluções</title>
-  <link rel="stylesheet" href="estilo.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <title>APP RLX LEITOR XML</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <img src="rlxlogo.png" alt="Logo RLX" />
+    <h1>APP RLX LEITOR XML</h1>
   </header>
 
-  <main>
-    <div class="tabs-wrapper">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="mostrarAba('carta')">Carta de Correção</button>
-        <button class="tab-btn" onclick="mostrarAba('cancelamento')">Cancelamento</button>
-        <button class="tab-btn" onclick="mostrarAba('devolucao')">Devoluções</button>
-      </div>
-    </div>
+  <div class="tabs">
+    <button onclick="mostrarAba('carta')" class="active">Carta de Correção</button>
+    <button onclick="mostrarAba('cancelamento')">Cancelamento</button>
+    <button onclick="mostrarAba('devolucao')">Devolução</button>
+  </div>
 
-    <!-- Carta -->
-    <section id="carta" class="aba ativa">
-      <div class="card">
-        <h2>Carta de Correção</h2>
-        <label>
-          Pasta XML - Carta de Correção:
-          <input type="file" webkitdirectory directory multiple id="pastaCarta" />
-        </label>
-        <div class="botoes">
-          <button class="action" onclick="processarArquivos(document.getElementById('pastaCarta').files, 'carta')">Ler XML</button>
-          <button class="action" onclick="exportar('carta')">Exportar</button>
-        </div>
-        <p id="contadorCarta"></p>
-        <table id="tabelaCarta">
-          <thead>
-            <tr><th>Data</th><th>Nota</th><th>Série</th><th>CNPJ</th><th>Motivo</th><th>Descrição</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+  <div class="aba ativa" id="aba-carta">
+    <h2>Carta de Correção</h2>
+    <input type="file" id="xmlCarta" multiple accept=".xml" />
+    <button onclick="lerXML('carta')">Ler XML</button>
+    <table id="tabela-carta">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Nota</th>
+          <th>Série</th>
+          <th>CNPJ</th>
+          <th>Motivo</th>
+          <th>Descrição</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-    <!-- Cancelamento -->
-    <section id="cancelamento" class="aba">
-      <div class="card">
-        <h2>Cancelamento</h2>
-        <label>
-          Pasta XML - Cancelamento:
-          <input type="file" webkitdirectory directory multiple id="pastaCancelamento" />
-        </label>
-        <div class="botoes">
-          <button class="action" onclick="processarArquivos(document.getElementById('pastaCancelamento').files, 'cancelamento')">Ler XML</button>
-          <button class="action" onclick="exportar('cancelamento')">Exportar</button>
-        </div>
-        <p id="contadorCancelamento"></p>
-        <table id="tabelaCancelamento">
-          <thead>
-            <tr><th>Data</th><th>Nota</th><th>Série</th><th>CNPJ</th><th>Motivo</th><th>Descrição</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+  <div class="aba" id="aba-cancelamento">
+    <h2>Cancelamento</h2>
+    <input type="file" id="xmlCancelamento" multiple accept=".xml" />
+    <button onclick="lerXML('cancelamento')">Ler XML</button>
+    <table id="tabela-cancelamento">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Nota</th>
+          <th>Série</th>
+          <th>CNPJ</th>
+          <th>Motivo</th>
+          <th>Descrição</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-    <!-- Devolução -->
-    <section id="devolucao" class="aba">
-      <div class="card">
-        <h2>Devoluções</h2>
-        <label>
-          Pasta XML - Devoluções:
-          <input type="file" webkitdirectory directory multiple id="pastaDevolucao" />
-        </label>
-        <div class="botoes">
-          <button class="action" onclick="processarArquivos(document.getElementById('pastaDevolucao').files, 'devolucao')">Ler XML</button>
-          <button class="action" onclick="exportar('devolucao')">Exportar</button>
-        </div>
-        <p id="contadorDevolucao"></p>
-        <table id="tabelaDevolucao">
-          <thead>
-            <tr><th>CNPJ</th><th>Nome</th><th>Nota</th><th>Série</th><th>Data</th><th>Valor produto</th><th>Municipio</th><th>natOp</th><th>Descrição</th><th>Vendedor</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+  <div class="aba" id="aba-devolucao">
+    <h2>Devolução</h2>
+    <input type="file" id="xmlDevolucao" multiple accept=".xml" />
+    <button onclick="lerXML('devolucao')">Ler XML</button>
+    <table id="tabela-devolucao">
+      <thead>
+        <tr>
+          <th>CNPJ</th>
+          <th>Nome</th>
+          <th>Nota</th>
+          <th>Série</th>
+          <th>Data</th>
+          <th>Valor</th>
+          <th>Município</th>
+          <th>Natureza da Operação</th>
+          <th>Descrição</th>
+          <th>Vendedor</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="spinner" class="spinner">
+    <div class="loader"></div>
+  </div>
 
   <footer>
-    Produzido por <strong>LM2 - Felipe Lima</strong>
+    <p>© 2025 RLX Fluidos e Refrigerantes</p>
   </footer>
 
   <script src="script.js"></script>
