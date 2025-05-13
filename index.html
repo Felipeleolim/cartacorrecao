@@ -1,91 +1,184 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>APP RLX LEITOR XML</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>APP RLX LEITOR XML</h1>
-  </header>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="header-content">
+        <i class="fas fa-file-code logo-icon"></i>
+        <h1>APP RLX LEITOR XML</h1>
+      </div>
+    </header>
 
-  <div class="tabs">
-    <button onclick="mostrarAba('carta')" class="active">Carta de Correção</button>
-    <button onclick="mostrarAba('cancelamento')">Cancelamento</button>
-    <button onclick="mostrarAba('devolucao')">Devolução</button>
+    <div class="tabs">
+      <button class="tab-button active" data-tab="carta">
+        <i class="fas fa-envelope-open-text"></i> Carta de Correção
+      </button>
+      <button class="tab-button" data-tab="cancelamento">
+        <i class="fas fa-ban"></i> Cancelamento
+      </button>
+      <button class="tab-button" data-tab="devolucao">
+        <i class="fas fa-undo"></i> Devoluções
+      </button>
+    </div>
+
+    <main class="app-main">
+      <div class="upload-area" id="dropZone">
+        <div class="drag-drop-hint">
+          <i class="fas fa-cloud-upload-alt"></i>
+          <p>Arraste e solte arquivos XML aqui ou selecione uma pasta</p>
+        </div>
+        
+        <div class="tag-controls">
+          <input type="text" id="customTagInput" placeholder="Digite a tag XML (ex: xNome)">
+          <button id="addTagBtn" class="action-button">
+            <i class="fas fa-plus"></i> Adicionar Tag
+          </button>
+        </div>
+        
+        <div id="customTagsContainer" class="tags-container"></div>
+        
+        <label for="xmlFile" class="upload-button action-button primary">
+          <i class="fas fa-folder-open"></i> Selecionar Pasta com XMLs
+        </label>
+        <input type="file" id="xmlFile" webkitdirectory directory multiple accept=".xml" style="display: none;">
+        
+        <button id="processXmlBtn" class="action-button primary" disabled>
+          <i class="fas fa-play"></i> Processar XMLs
+        </button>
+      </div>
+      
+      <div class="status-bar" id="statusBar">
+        Aguardando arquivos XML...
+      </div>
+      
+      <div class="spinner" id="spinner">
+        <div class="spinner-icon"></div>
+        <span>Processando arquivos...</span>
+      </div>
+
+      <div class="alert-container" id="alertContainer"></div>
+
+      <div id="aba-carta" class="tab">
+        <div class="tab-header">
+          <h2><i class="fas fa-envelope-open-text"></i> Carta de Correção</h2>
+          <div class="tab-actions">
+            <input type="text" class="search-input" data-table="tabelaCarta" placeholder="Buscar...">
+            <button class="export-button action-button">
+              <i class="fas fa-file-excel"></i> Exportar Excel
+            </button>
+          </div>
+        </div>
+        <div class="empty-state" id="empty-carta">
+          <i class="fas fa-inbox"></i>
+          <p>Nenhuma carta de correção encontrada</p>
+        </div>
+        <div class="table-container">
+          <table id="tabelaCarta">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Nota</th>
+                <th>Série</th>
+                <th>CNPJ</th>
+                <th>Correção</th>
+                <th>Arquivo</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="aba-cancelamento" class="tab">
+        <div class="tab-header">
+          <h2><i class="fas fa-ban"></i> Cancelamento</h2>
+          <div class="tab-actions">
+            <input type="text" class="search-input" data-table="tabelaCancelamento" placeholder="Buscar...">
+            <button class="export-button action-button">
+              <i class="fas fa-file-excel"></i> Exportar Excel
+            </button>
+          </div>
+        </div>
+        <div class="empty-state" id="empty-cancelamento">
+          <i class="fas fa-inbox"></i>
+          <p>Nenhum cancelamento encontrado</p>
+        </div>
+        <div class="table-container">
+          <table id="tabelaCancelamento">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Nota</th>
+                <th>Série</th>
+                <th>CNPJ</th>
+                <th>Motivo</th>
+                <th>Arquivo</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="aba-devolucao" class="tab">
+        <div class="tab-header">
+          <h2><i class="fas fa-undo"></i> Devoluções</h2>
+          <div class="tab-actions">
+            <input type="text" class="search-input" data-table="tabelaDevolucao" placeholder="Buscar...">
+            <button class="export-button action-button">
+              <i class="fas fa-file-excel"></i> Exportar Excel
+            </button>
+          </div>
+        </div>
+        <div class="empty-state" id="empty-devolucao">
+          <i class="fas fa-inbox"></i>
+          <p>Nenhuma devolução encontrada</p>
+        </div>
+        <div class="table-container">
+          <table id="tabelaDevolucao">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Nota</th>
+                <th>Série</th>
+                <th>CNPJ</th>
+                <th>Nome</th>
+                <th>Motivo</th>
+                <th>Valor Nota</th>
+                <th>Vendedor</th>
+                <th>Arquivo</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="botoes-devolucao">
+          <button id="salvarVendedores" class="action-button">
+            <i class="fas fa-save"></i> Salvar
+          </button>
+          <button id="editarVendedores" class="action-button">
+            <i class="fas fa-edit"></i> Editar
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <div class="footer-content">
+        <p>&copy; 2023 RLX Fluidos e Refrigerantes</p>
+        <p class="app-version">Versão 2.0.0</p>
+      </div>
+    </footer>
   </div>
 
-  <div class="aba ativa" id="aba-carta">
-    <h2>Carta de Correção</h2>
-    <input type="file" id="xmlCarta" multiple accept=".xml" />
-    <button onclick="lerXML('carta')">Ler XML</button>
-    <table id="tabela-carta">
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Nota</th>
-          <th>Série</th>
-          <th>CNPJ</th>
-          <th>Motivo</th>
-          <th>Descrição</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div class="aba" id="aba-cancelamento">
-    <h2>Cancelamento</h2>
-    <input type="file" id="xmlCancelamento" multiple accept=".xml" />
-    <button onclick="lerXML('cancelamento')">Ler XML</button>
-    <table id="tabela-cancelamento">
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Nota</th>
-          <th>Série</th>
-          <th>CNPJ</th>
-          <th>Motivo</th>
-          <th>Descrição</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div class="aba" id="aba-devolucao">
-    <h2>Devolução</h2>
-    <input type="file" id="xmlDevolucao" multiple accept=".xml" />
-    <button onclick="lerXML('devolucao')">Ler XML</button>
-    <table id="tabela-devolucao">
-      <thead>
-        <tr>
-          <th>CNPJ</th>
-          <th>Nome</th>
-          <th>Nota</th>
-          <th>Série</th>
-          <th>Data</th>
-          <th>Valor</th>
-          <th>Município</th>
-          <th>Natureza da Operação</th>
-          <th>Descrição</th>
-          <th>Vendedor</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="spinner" class="spinner">
-    <div class="loader"></div>
-  </div>
-
-  <footer>
-    <p>© 2025 RLX Fluidos e Refrigerantes</p>
-  </footer>
-
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
