@@ -665,18 +665,71 @@ function getXMLValue(xml, selector) {
   return "";
 }
 
-// Formata data
+// Função formatDate atualizada (mantém todas as funcionalidades)
 function formatDate(dateString) {
   if (!dateString) return "-";
+  
   try {
+    // Primeiro tenta extrair apenas a parte da data (formato ISO)
+    if (dateString.includes('T')) {
+      const [datePart] = dateString.split('T');
+      const [year, month, day] = datePart.split('-');
+      return `${day}/${month}/${year}`;
+    }
+    
+    // Fallback para outros formatos de data
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    if (!isNaN(date)) {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+    
+    return dateString; // Retorna o original se não conseguir formatar
   } catch (e) {
-    return dateString; // Retorna o valor original se não puder formatar
+    return dateString; // Fallback seguro
+  }
+}
+
+// Função parseDate para filtros (mantém a funcionalidade original)
+function parseDate(dateString) {
+  if (!dateString || dateString === "-") return new Date(0);
+  
+  // Aceita tanto dd/mm/aaaa quanto aaaa-mm-dd
+  if (dateString.includes('/')) {
+    const [day, month, year] = dateString.split('/').map(Number);
+    return new Date(year, month - 1, day);
+  } else if (dateString.includes('-')) {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  
+  return new Date(dateString); // Fallback
+}
+
+// Função exportToExcel atualizada (mantém filtros e funcionalidades)
+function exportToExcel(tableId, fileName) {
+  try {
+    const table = document.getElementById(tableId);
+    const clone = table.cloneNode(true);
+    
+    // Processa apenas células de data (mantém os filtros)
+    const dateCells = clone.querySelectorAll('td:first-child');
+    dateCells.forEach(cell => {
+      if (cell.textContent.includes('/')) {
+        cell.textContent = cell.textContent.split(' ')[0]; // Remove hora se existir
+      }
+    });
+    
+    // Restante do código permanece igual
+    const workbook = XLSX.utils.table_to_book(clone);
+    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    XLSX.writeFile(workbook, `${fileName}_${dateStr}.xlsx`);
+    showAlert(`Exportação concluída!`, "success");
+  } catch (error) {
+    console.error("Erro ao exportar:", error);
+    showAlert("Erro ao exportar para Excel", "error");
   }
 }
 
