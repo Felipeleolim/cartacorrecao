@@ -35,7 +35,12 @@ let appState = {
   lastOperation: null,
   vendedoresSelecionados: {},
   currentTab: "carta",
-  files: []
+  files: [],
+  results: {
+    carta: [],
+    cancelamento: [],
+    devolucao: []
+  }
 };
 
 // =============================================
@@ -66,7 +71,27 @@ const DOM = {
     devolucao: document.getElementById("empty-devolucao")
   },
   exportButtons: document.querySelectorAll(".export-button"),
-  searchInputs: document.querySelectorAll(".search-input")
+  searchInputs: document.querySelectorAll(".search-input"),
+  filters: {
+    carta: {
+      start: document.getElementById("filter-start-carta"),
+      end: document.getElementById("filter-end-carta"),
+      button: document.getElementById("filter-carta"),
+      reset: document.getElementById("reset-carta")
+    },
+    cancelamento: {
+      start: document.getElementById("filter-start-cancelamento"),
+      end: document.getElementById("filter-end-cancelamento"),
+      button: document.getElementById("filter-cancelamento"),
+      reset: document.getElementById("reset-cancelamento")
+    },
+    devolucao: {
+      start: document.getElementById("filter-start-devolucao"),
+      end: document.getElementById("filter-end-devolucao"),
+      button: document.getElementById("filter-devolucao"),
+      reset: document.getElementById("reset-devolucao")
+    }
+  }
 };
 
 // =============================================
@@ -77,6 +102,7 @@ const DOM = {
 function init() {
   checkXLSXSupport();
   setupEventListeners();
+  setupDateFilters();
   checkEmptyTables();
   updateStatus("Aguardando arquivos XML...");
   loadSettings();
@@ -134,6 +160,69 @@ function setupEventListeners() {
   document.getElementById("editarVendedores")?.addEventListener("click", editarVendedores);
 }
 
+// Configura os filtros de data
+function setupDateFilters() {
+  for (const [tabName, filter] of Object.entries(DOM.filters)) {
+    filter.button.addEventListener("click", () => applyDateFilter(tabName));
+    filter.reset.addEventListener("click", () => resetDateFilter(tabName));
+  }
+}
+
+// Aplica filtro por data
+function applyDateFilter(tabName) {
+  const startDate = DOM.filters[tabName].start.value;
+  const endDate = DOM.filters[tabName].end.value;
+  
+  if (!startDate && !endDate) {
+    showAlert("Selecione pelo menos uma data para filtrar", "warning");
+    return;
+  }
+  
+  const table = DOM.tables[tabName];
+  const rows = table.querySelectorAll("tbody tr");
+  let visibleCount = 0;
+  
+  rows.forEach(row => {
+    const dateCell = row.cells[0].textContent;
+    const rowDate = parseDate(dateCell);
+    
+    let shouldShow = true;
+    
+    if (startDate && rowDate < new Date(startDate)) {
+      shouldShow = false;
+    }
+    
+    if (endDate && rowDate > new Date(endDate)) {
+      shouldShow = false;
+    }
+    
+    row.style.display = shouldShow ? "" : "none";
+    if (shouldShow) visibleCount++;
+  });
+  
+  showAlert(`Filtro aplicado: ${visibleCount} itens encontrados`, "success");
+}
+
+// Reseta o filtro de data
+function resetDateFilter(tabName) {
+  DOM.filters[tabName].start.value = "";
+  DOM.filters[tabName].end.value = "";
+  
+  const table = DOM.tables[tabName];
+  const rows = table.querySelectorAll("tbody tr");
+  rows.forEach(row => row.style.display = "");
+  
+  showAlert("Filtro removido", "info");
+}
+
+// Converte data no formato brasileiro para objeto Date
+function parseDate(dateString) {
+  if (!dateString || dateString === "-") return new Date(0);
+  
+  const [day, month, year] = dateString.split('/').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 // Processa os arquivos selecionados
 async function processFiles() {
   if (appState.files.length === 0) {
@@ -143,6 +232,7 @@ async function processFiles() {
   
   try {
     const results = await processFolder(appState.files);
+    appState.results = results; // Salva os resultados no estado
     populateTables(results);
     showAlert("Processamento concluído com sucesso!", "success");
     updateStatus(`Processamento concluído. ${appState.files.length} arquivos processados.`, true);
@@ -178,7 +268,8 @@ async function processFolder(files) {
         
         results[docType].push({
           ...values,
-          fileName: file.name
+          fileName: file.name,
+          rawDate: values.dataEvento // Salva a data original para filtro
         });
         
         updateStatus(`Processado: ${file.name}`);
@@ -218,14 +309,21 @@ function extractXMLValues(xml) {
   return values;
 }
 
-// Determina o tipo de documento
+// Determina o tipo de documento - Versão aprimorada
 function determineDocumentType(xml, values) {
+  // Verifica se é cancelamento (tem justificativa)
   if (values.justificativa && values.justificativa.trim() !== "") {
     return "cancelamento";
   }
   
-  const isDevolucao = xml.getElementsByTagName("infCpl").length > 0 || 
-                     (values.motivo && values.motivo.toLowerCase().includes("devolução"));
+  // Verifica se é devolução
+  const motivo = values.motivo ? values.motivo.toLowerCase() : "";
+  const xEvento = xml.getElementsByTagName("infEvento")[0]?.getAttribute("xEvento")?.toLowerCase() || "";
+  
+  const isDevolucao = 
+    motivo.includes("devolução") || motivo.includes("devolucao") ||
+    xEvento.includes("devolução") || xEvento.includes("devolucao") ||
+    motivo.includes("retorno") || motivo.includes("devolvido");
   
   return isDevolucao ? "devolucao" : "carta";
 }
@@ -442,7 +540,7 @@ function checkEmptyTables() {
 }
 
 // =============================================
-// FUNÇÕES DE VENDEDORES (DEVOLUÇÃO) - ATUALIZADAS
+// FUNÇÕES DE VENDEDORES (DEVOLUÇÃO)
 // =============================================
 
 // Salva os vendedores selecionados
@@ -576,7 +674,7 @@ function formatDate(dateString) {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
-          });
+    });
   } catch (e) {
     return dateString; // Retorna o valor original se não puder formatar
   }
