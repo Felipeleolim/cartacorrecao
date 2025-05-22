@@ -1,10 +1,10 @@
 // =============================================
 // CONFIGURAÇÕES E CONSTANTES
 // =============================================
-const FIXED_TAGS = {
+let FIXED_TAGS = {
   chave: "chNFe",
   dataEvento: "dhEvento",
-   dataEmissao: "dhEmi",
+  dataEmissao: "dhEmi",
   cnpj: "dest > CNPJ",
   nome: "dest > xNome",
   motivo: "infCpl",
@@ -13,7 +13,7 @@ const FIXED_TAGS = {
   justificativa: "xJust"
 };
 
-const VENDEDORES = [
+let VENDEDORES = [
   "Sem Vendedor Selecionado",
   "Ariana Gallo",
   "André Godoy",
@@ -102,18 +102,13 @@ const DOM = {
 function formatDate(dateString) {
   if (!dateString || typeof dateString !== 'string') return "-";
   
-  // Remove horário e timezone (ex: "04/07/2025 03:00:00" → "04/07/2025")
   const dateOnly = dateString.split(' ')[0];
-  
-  // Verifica formato DD/MM/AAAA
   const brFormat = dateOnly.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (brFormat) return dateOnly;
   
-  // Verifica formato AAAA-MM-DD
   const isoFormat = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (isoFormat) return `${isoFormat[3]}/${isoFormat[2]}/${isoFormat[1]}`;
   
-  // Tenta converter como objeto Date
   try {
     const dateObj = new Date(dateString);
     if (!isNaN(dateObj)) {
@@ -129,9 +124,6 @@ function formatDate(dateString) {
   return "-";
 }
 
-// =============================================
-// FUNÇÃO exportToExcel ATUALIZADA (GARANTE TEXTO PURO)
-// =============================================
 function exportToExcel(tableId, fileName) {
   try {
     const table = document.getElementById(tableId);
@@ -141,22 +133,17 @@ function exportToExcel(tableId, fileName) {
     clone.querySelectorAll('td').forEach(cell => {
       const content = cell.textContent.trim();
       
-      // Se for uma data no formato DD/MM/AAAA ou AAAA-MM-DD
       if (content.match(/^(\d{2}\/\d{2}\/\d{4})$/) || content.match(/^(\d{4}-\d{2}-\d{2})$/)) {
-        // Força como texto puro (adiciona aspas simples no início)
         cell.textContent = `'${formatDate(content)}`;
       }
     });
     
-    // Processa todas as células para garantir datas sem hora
     clone.querySelectorAll('td').forEach(cell => {
       const content = cell.textContent.trim();
       
-      // Se for data com hora (DD/MM/AAAA HH:MM:SS)
       if (content.match(/^(\d{2}\/\d{2}\/\d{4}) (\d{2}:\d{2}:\d{2})$/)) {
         cell.textContent = content.split(' ')[0];
       }
-      // Se for data ISO com hora (AAAA-MM-DD HH:MM:SS)
       else if (content.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/)) {
         const [datePart] = content.split(' ');
         const [year, month, day] = datePart.split('-');
@@ -164,10 +151,18 @@ function exportToExcel(tableId, fileName) {
       }
     });
 
+    // Processa os dropdowns de vendedores - pega o valor fixado ou o selecionado
+    clone.querySelectorAll('select.vendedor-dropdown').forEach(dropdown => {
+      const chave = dropdown.dataset.chave;
+      const vendedor = appState.vendedoresSelecionados[chave] || dropdown.options[dropdown.selectedIndex].text;
+      const parentTd = dropdown.parentElement;
+      parentTd.innerHTML = vendedor;
+    });
+
     const workbook = XLSX.utils.table_to_book(clone);
     const exportDate = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
     XLSX.writeFile(workbook, `${fileName}_${exportDate}.xlsx`);
-    showAlert("Exportação concluída com datas formatadas corretamente!", "success");
+    showAlert("Exportação concluída com sucesso!", "success");
   } catch (error) {
     console.error("Erro na exportação:", error);
     showAlert("Falha ao exportar para Excel", "error");
@@ -292,7 +287,7 @@ function extractXMLValues(xml) {
     const value = getXMLValue(xml, selector);
     
     if (key === 'dataEvento') {
-      values[key] = value ? value.split(' ')[0] : ""; // Remove hora se existir
+      values[key] = value ? value.split(' ')[0] : "";
     } else {
       values[key] = value;
     }
@@ -351,8 +346,8 @@ function populateTables(results) {
     item.fileName
   ]);
   
-   populateTable("devolucao", results.devolucao, (item) => [
-    formatDate(item.dataEmissao || item.dataEvento),  // Prioriza dataEmissao, fallback para dataEvento
+  populateTable("devolucao", results.devolucao, (item) => [
+    formatDate(item.dataEmissao || item.dataEvento),
     extractNotaFiscal(item.chave),
     extractSerie(item.chave),
     formatCNPJ(item.cnpj),
@@ -362,15 +357,21 @@ function populateTables(results) {
     createVendedorDropdown(item.chave, item.fileName),
     item.fileName
   ]);
-  ;
 
+  // Atualiza os dropdowns com os valores salvos
   setTimeout(() => {
     document.querySelectorAll('.vendedor-dropdown').forEach(dropdown => {
+      const chave = dropdown.dataset.chave;
+      if (appState.vendedoresSelecionados[chave]) {
+        dropdown.value = appState.vendedoresSelecionados[chave];
+        dropdown.classList.add('vendedor-definido');
+      }
+      
       dropdown.addEventListener('change', function() {
-        const chave = this.dataset.chave;
-        const vendedor = this.value;
-        if (vendedor && vendedor !== "Sem Vendedor Selecionado") {
-          this.style.border = "1px solid #3B82F6";
+        if (this.value !== "Sem Vendedor Selecionado") {
+          this.classList.add('vendedor-definido');
+        } else {
+          this.classList.remove('vendedor-definido');
         }
       });
     });
@@ -401,13 +402,11 @@ function populateTable(type, items, rowMapper) {
 function parseDate(dateString) {
   if (!dateString || dateString === "-") return null;
   
-  // Formato DD/MM/AAAA
   const parts = dateString.split('/');
   if (parts.length === 3) {
     return new Date(parts[2], parts[1] - 1, parts[0]);
   }
   
-  // Formato AAAA-MM-DD
   const isoParts = dateString.split('-');
   if (isoParts.length === 3) {
     return new Date(isoParts[0], isoParts[1] - 1, isoParts[2]);
@@ -415,6 +414,7 @@ function parseDate(dateString) {
   
   return null;
 }
+
 function getXMLValue(xml, selector) {
   if (!selector) return "";
   
@@ -458,11 +458,20 @@ function extractSerie(chave) {
 
 function createVendedorDropdown(chave, fileName) {
   const dropdownId = `vendedor-${chave}`;
-  const currentVendedor = appState.vendedoresSelecionados[chave] || VENDEDORES[0];
+  const vendedorSalvo = appState.vendedoresSelecionados[chave];
+  const vendedorAtual = vendedorSalvo || "Sem Vendedor Selecionado";
+  const classeExtra = vendedorSalvo ? 'vendedor-definido' : '';
   
   return `
-    <select id="${dropdownId}" data-chave="${chave}" data-file="${fileName}" class="vendedor-dropdown">
-      ${VENDEDORES.map(v => `<option value="${v}" ${v === currentVendedor ? 'selected' : ''}>${v}</option>`).join('')}
+    <select id="${dropdownId}" 
+            data-chave="${chave}" 
+            data-file="${fileName}" 
+            class="vendedor-dropdown ${classeExtra}">
+      ${VENDEDORES.map(v => `
+        <option value="${v}" ${v === vendedorAtual ? 'selected' : ''}>
+          ${v}
+        </option>
+      `).join('')}
     </select>
   `;
 }
@@ -681,23 +690,29 @@ function salvarVendedores() {
     const chave = dropdown.dataset.chave;
     const vendedor = dropdown.value;
     
-    if (vendedor && vendedor !== "Sem Vendedor Selecionado") {
+    if (vendedor !== "Sem Vendedor Selecionado") {
       appState.vendedoresSelecionados[chave] = vendedor;
       savedCount++;
       
-      dropdown.style.border = "2px solid #10B981";
+      // Feedback visual
+      dropdown.classList.add('vendedor-salvo');
       setTimeout(() => {
-        dropdown.style.border = "1px solid #D1D5DB";
-      }, 1000);
+        dropdown.classList.remove('vendedor-salvo');
+      }, 2000);
+    } else {
+      // Remove se existir
+      if (appState.vendedoresSelecionados[chave]) {
+        delete appState.vendedoresSelecionados[chave];
+      }
     }
   });
 
   saveSettings();
   
   if (savedCount > 0) {
-    showAlert(`${savedCount} vendedor(es) salvos com sucesso!`, "success");
+    showAlert(`${savedCount} vendedor(es) fixado(s) com sucesso!`, "success");
   } else {
-    showAlert("Nenhum vendedor selecionado para salvar", "warning");
+    showAlert("Nenhum vendedor foi selecionado para fixar", "warning");
   }
 }
 
@@ -756,6 +771,10 @@ function loadSettings() {
       appState.vendedoresSelecionados = settings.vendedoresSelecionados || {};
       appState.currentTab = settings.currentTab || "carta";
       
+      if (settings.vendedoresList) {
+        VENDEDORES = settings.vendedoresList;
+      }
+      
       renderCustomTags();
       switchTab(appState.currentTab);
     } catch (error) {
@@ -769,7 +788,8 @@ function saveSettings() {
     customTags,
     vendedoresSelecionados: appState.vendedoresSelecionados,
     currentTab: appState.currentTab,
-    lastOperation: appState.lastOperation
+    lastOperation: appState.lastOperation,
+    vendedoresList: VENDEDORES
   };
   
   localStorage.setItem("rlx-xml-reader-settings", JSON.stringify(settings));
