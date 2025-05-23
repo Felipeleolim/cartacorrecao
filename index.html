@@ -149,27 +149,58 @@
         </div>
       </div>
 
-      <div id="aba-devolucao" class="tab">
-        <div class="tab-header">
-          <h2><i class="fas fa-undo"></i> Devoluções</h2>
-          <div class="tab-actions">
-            <div class="filter-controls">
-              <input type="date" id="filter-start-devolucao" class="date-filter">
-              <span>até</span>
-              <input type="date" id="filter-end-devolucao" class="date-filter">
-              <button id="filter-devolucao" class="action-button small">
-                <i class="fas fa-filter"></i> Filtrar
-              </button>
-              <button id="reset-devolucao" class="action-button small">
-                <i class="fas fa-times"></i> Limpar
-              </button>
-            </div>
-            <input type="text" class="search-input" data-table="tabelaDevolucao" placeholder="Buscar...">
-            <button class="export-button action-button">
-              <i class="fas fa-file-excel"></i> Exportar Excel
-            </button>
-          </div>
-        </div>
+ <div id="aba-devolucao" class="tab">
+  <div class="tab-header">
+    <h2><i class="fas fa-undo"></i> Devoluções</h2>
+    <div class="tab-actions">
+      <div class="filter-controls">
+        <input type="date" id="filter-start-devolucao" class="date-filter">
+        <span>até</span>
+        <input type="date" id="filter-end-devolucao" class="date-filter">
+        <button id="filter-devolucao" class="action-button small">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+        <button id="reset-devolucao" class="action-button small">
+          <i class="fas fa-times"></i> Limpar
+        </button>
+      </div>
+      <input type="text" class="search-input" data-table="tabelaDevolucao" placeholder="Buscar...">
+      <button class="export-button action-button">
+        <i class="fas fa-file-excel"></i> Exportar Excel
+      </button>
+    </div>
+  </div>
+  <div class="empty-state" id="empty-devolucao">
+    <i class="fas fa-inbox"></i>
+    <p>Nenhuma devolução encontrada</p>
+  </div>
+  <div class="table-container">
+    <table id="tabelaDevolucao">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Série (XML)</th>
+          <th>Número</th>
+          <th>CNPJ</th>
+          <th>Nome</th>
+          <th>Motivo</th>
+          <th>Valor</th>
+          <th>Vendedor</th>
+          <th>Arquivo</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="botoes-devolucao">
+    <button id="salvarVendedores" class="action-button">
+      <i class="fas fa-save"></i> Salvar Vendedores
+    </button>
+    <button id="editarVendedores" class="action-button">
+      <i class="fas fa-edit"></i> Editar Vendedores
+    </button>
+  </div>
+</div>
         <div class="empty-state" id="empty-devolucao">
           <i class="fas fa-inbox"></i>
           <p>Nenhuma devolução encontrada</p>
