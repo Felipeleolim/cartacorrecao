@@ -12,7 +12,12 @@ let FIXED_TAGS = {
   correcao: "xCorrecao",
   justificativa: "xJust",
   serie: "ide > serie",
-  numeroNota: "ide > nNF"
+  numeroNota: "ide > nNF",
+  tipoEvento: "tpEvento",
+  nProt: "nProt",
+  descEvento: "descEvento",
+  natOp: "ide > natOp",
+  CFOP: "det > prod > CFOP"
 };
 
 let VENDEDORES = [
@@ -44,6 +49,28 @@ let appState = {
     carta: [],
     cancelamento: [],
     devolucao: []
+  },
+  filters: {
+    carta: {
+      startDate: null,
+      endDate: null,
+      evento: "",
+      sequencia: ""
+    },
+    cancelamento: {
+      startDate: null,
+      endDate: null,
+      justificativa: "",
+      nProt: ""
+    },
+    devolucao: {
+      startDate: null,
+      endDate: null,
+      natOp: "",
+      CFOP: "",
+      valorMin: null,
+      valorMax: null
+    }
   }
 };
 
@@ -80,18 +107,26 @@ const DOM = {
     carta: {
       start: document.getElementById("filter-start-carta"),
       end: document.getElementById("filter-end-carta"),
+      evento: document.getElementById("filter-evento-carta"),
+      sequencia: document.getElementById("filter-sequencia-carta"),
       button: document.getElementById("filter-carta"),
       reset: document.getElementById("reset-carta")
     },
     cancelamento: {
       start: document.getElementById("filter-start-cancelamento"),
       end: document.getElementById("filter-end-cancelamento"),
+      justificativa: document.getElementById("filter-justificativa-cancelamento"),
+      nProt: document.getElementById("filter-nProt-cancelamento"),
       button: document.getElementById("filter-cancelamento"),
       reset: document.getElementById("reset-cancelamento")
     },
     devolucao: {
       start: document.getElementById("filter-start-devolucao"),
       end: document.getElementById("filter-end-devolucao"),
+      natOp: document.getElementById("filter-natOp-devolucao"),
+      CFOP: document.getElementById("filter-CFOP-devolucao"),
+      valorMin: document.getElementById("filter-valorMin-devolucao"),
+      valorMax: document.getElementById("filter-valorMax-devolucao"),
       button: document.getElementById("filter-devolucao"),
       reset: document.getElementById("reset-devolucao")
     }
@@ -211,37 +246,47 @@ function extractSerie(chave) {
 // =============================================
 
 function populateTables(results) {
-  populateTable("carta", results.carta, (item) => [
+  const filteredResults = {
+    carta: applyFilters(results.carta, "carta"),
+    cancelamento: applyFilters(results.cancelamento, "cancelamento"),
+    devolucao: applyFilters(results.devolucao, "devolucao")
+  };
+
+  populateTable("carta", filteredResults.carta, (item) => [
     formatDate(item.dataEvento),
     extractNotaFiscal(item.chave),
     extractSerie(item.chave),
     formatCNPJ(item.cnpj),
     item.correcao || "-",
+    item.tipoEvento || "-",
+    item.descEvento || "-",
     item.fileName
   ]);
   
-  populateTable("cancelamento", results.cancelamento, (item) => [
+  populateTable("cancelamento", filteredResults.cancelamento, (item) => [
     formatDate(item.dataEvento),
     extractNotaFiscal(item.chave),
     extractSerie(item.chave),
     formatCNPJ(item.cnpj),
     item.justificativa || "-",
+    item.nProt || "-",
     item.fileName
   ]);
   
-  populateTable("devolucao", results.devolucao, (item) => [
+  populateTable("devolucao", filteredResults.devolucao, (item) => [
     formatDate(item.dataEmissao || item.dataEvento),
     item.serie || "-",
     item.numeroNota || "-",
     formatCNPJ(item.cnpj),
     item.nome || "-",
     item.motivo || "-",
+    item.natOp || "-",
+    item.CFOP || "-",
     item.valorNota ? `R$ ${parseFloat(item.valorNota).toFixed(2)}` : "-",
     createVendedorDropdown(item.chave, item.fileName),
     item.fileName
   ]);
 
-  // Atualiza os dropdowns com os valores salvos
   setTimeout(() => {
     document.querySelectorAll('.vendedor-dropdown').forEach(dropdown => {
       const chave = dropdown.dataset.chave;
@@ -278,6 +323,45 @@ function populateTable(type, items, rowMapper) {
       row.appendChild(cell);
     });
     tableBody.appendChild(row);
+  });
+}
+
+function applyFilters(items, tabName) {
+  const filters = appState.filters[tabName];
+  
+  return items.filter(item => {
+    if (filters.startDate || filters.endDate) {
+      const itemDate = parseDate(item.dataEvento || item.dataEmissao);
+      if (!itemDate) return false;
+      
+      if (filters.startDate && itemDate < filters.startDate) return false;
+      if (filters.endDate && itemDate > filters.endDate) return false;
+    }
+    
+    switch(tabName) {
+      case "carta":
+        if (filters.evento && !item.tipoEvento.includes(filters.evento)) return false;
+        if (filters.sequencia && !item.nSeqEvento?.includes(filters.sequencia)) return false;
+        break;
+        
+      case "cancelamento":
+        if (filters.justificativa && !item.justificativa.toLowerCase().includes(filters.justificativa.toLowerCase())) return false;
+        if (filters.nProt && !item.nProt.includes(filters.nProt)) return false;
+        break;
+        
+      case "devolucao":
+        if (filters.natOp && !item.natOp.toLowerCase().includes(filters.natOp.toLowerCase())) return false;
+        if (filters.CFOP && !item.CFOP.includes(filters.CFOP)) return false;
+        
+        if (filters.valorMin || filters.valorMax) {
+          const valor = parseFloat(item.valorNota) || 0;
+          if (filters.valorMin && valor < filters.valorMin) return false;
+          if (filters.valorMax && valor > filters.valorMax) return false;
+        }
+        break;
+    }
+    
+    return true;
   });
 }
 
@@ -336,54 +420,82 @@ function editarVendedores() {
 
 function setupDateFilters() {
   for (const [tabName, filter] of Object.entries(DOM.filters)) {
-    filter.button.addEventListener("click", () => applyDateFilter(tabName));
-    filter.reset.addEventListener("click", () => resetDateFilter(tabName));
+    filter.start?.addEventListener("change", () => updateFilterState(tabName));
+    filter.end?.addEventListener("change", () => updateFilterState(tabName));
+    filter.evento?.addEventListener("input", () => updateFilterState(tabName));
+    filter.sequencia?.addEventListener("input", () => updateFilterState(tabName));
+    filter.justificativa?.addEventListener("input", () => updateFilterState(tabName));
+    filter.nProt?.addEventListener("input", () => updateFilterState(tabName));
+    filter.natOp?.addEventListener("input", () => updateFilterState(tabName));
+    filter.CFOP?.addEventListener("input", () => updateFilterState(tabName));
+    filter.valorMin?.addEventListener("input", () => updateFilterState(tabName));
+    filter.valorMax?.addEventListener("input", () => updateFilterState(tabName));
+    
+    filter.button.addEventListener("click", () => applyFiltersAndUpdate(tabName));
+    filter.reset.addEventListener("click", () => resetFilters(tabName));
   }
 }
 
-function applyDateFilter(tabName) {
-  const startDate = DOM.filters[tabName].start.value;
-  const endDate = DOM.filters[tabName].end.value;
+function updateFilterState(tabName) {
+  const domFilter = DOM.filters[tabName];
+  const stateFilter = appState.filters[tabName];
   
-  if (!startDate && !endDate) {
-    showAlert("Selecione pelo menos uma data para filtrar", "warning");
-    return;
+  stateFilter.startDate = domFilter.start.value ? new Date(domFilter.start.value) : null;
+  stateFilter.endDate = domFilter.end.value ? new Date(domFilter.end.value) : null;
+  
+  if (tabName === "carta") {
+    stateFilter.evento = domFilter.evento.value;
+    stateFilter.sequencia = domFilter.sequencia.value;
+  } else if (tabName === "cancelamento") {
+    stateFilter.justificativa = domFilter.justificativa.value;
+    stateFilter.nProt = domFilter.nProt.value;
+  } else if (tabName === "devolucao") {
+    stateFilter.natOp = domFilter.natOp.value;
+    stateFilter.CFOP = domFilter.CFOP.value;
+    stateFilter.valorMin = domFilter.valorMin.value ? parseFloat(domFilter.valorMin.value) : null;
+    stateFilter.valorMax = domFilter.valorMax.value ? parseFloat(domFilter.valorMax.value) : null;
   }
-  
-  const table = DOM.tables[tabName];
-  const rows = table.querySelectorAll("tbody tr");
-  let visibleCount = 0;
-  
-  rows.forEach(row => {
-    const dateCell = row.cells[0].textContent;
-    const rowDate = parseDate(dateCell);
-    
-    let shouldShow = true;
-    
-    if (startDate && rowDate < new Date(startDate)) {
-      shouldShow = false;
-    }
-    
-    if (endDate && rowDate > new Date(endDate)) {
-      shouldShow = false;
-    }
-    
-    row.style.display = shouldShow ? "" : "none";
-    if (shouldShow) visibleCount++;
-  });
-  
-  showAlert(`Filtro aplicado: ${visibleCount} itens encontrados`, "success");
 }
 
-function resetDateFilter(tabName) {
-  DOM.filters[tabName].start.value = "";
-  DOM.filters[tabName].end.value = "";
+function applyFiltersAndUpdate(tabName) {
+  updateFilterState(tabName);
+  populateTables(appState.results);
+  showAlert(`Filtros aplicados na aba ${tabName}`, "success");
+}
+
+function resetFilters(tabName) {
+  const domFilter = DOM.filters[tabName];
+  const stateFilter = appState.filters[tabName];
   
-  const table = DOM.tables[tabName];
-  const rows = table.querySelectorAll("tbody tr");
-  rows.forEach(row => row.style.display = "");
+  domFilter.start.value = "";
+  domFilter.end.value = "";
   
-  showAlert("Filtro removido", "info");
+  if (tabName === "carta") {
+    domFilter.evento.value = "";
+    domFilter.sequencia.value = "";
+    stateFilter.evento = "";
+    stateFilter.sequencia = "";
+  } else if (tabName === "cancelamento") {
+    domFilter.justificativa.value = "";
+    domFilter.nProt.value = "";
+    stateFilter.justificativa = "";
+    stateFilter.nProt = "";
+  } else if (tabName === "devolucao") {
+    domFilter.natOp.value = "";
+    domFilter.CFOP.value = "";
+    domFilter.valorMin.value = "";
+    domFilter.valorMax.value = "";
+    stateFilter.natOp = "";
+    stateFilter.CFOP = "";
+    stateFilter.valorMin = null;
+    stateFilter.valorMax = null;
+  }
+  
+  stateFilter.startDate = null;
+  stateFilter.endDate = null;
+  
+  populateTables(appState.results);
+  showAlert(`Filtros resetados na aba ${tabName}`, "info");
 }
 
 function setupExportButtons() {
@@ -545,7 +657,6 @@ function exportToExcel(tableId, fileName) {
     const table = document.getElementById(tableId);
     const clone = table.cloneNode(true);
 
-    // Corrige datas e remove dropdowns
     clone.querySelectorAll('td').forEach(cell => {
       const content = cell.textContent.trim();
 
@@ -562,7 +673,6 @@ function exportToExcel(tableId, fileName) {
       }
     });
 
-    // Substitui cada dropdown por texto do vendedor
     clone.querySelectorAll('select.vendedor-dropdown').forEach(dropdown => {
       const parentTd = dropdown.parentElement;
       const chave = dropdown.dataset.chave;
@@ -579,7 +689,6 @@ function exportToExcel(tableId, fileName) {
     showAlert("Falha ao exportar para Excel", "error");
   }
 }
-
 
 // =============================================
 // FUNÇÕES DE PROCESSAMENTO
@@ -697,17 +806,21 @@ function extractXMLValues(xml) {
 
   for (const [key, selector] of Object.entries(FIXED_TAGS)) {
     const value = getXMLValue(xml, selector);
-    if (key === 'dataEvento') {
+    if (key === 'dataEvento' || key === 'dataEmissao') {
       values[key] = value ? value.split(' ')[0] : "";
     } else {
       values[key] = value;
     }
   }
 
-  // Se chave estiver vazia, tenta recuperar de outro lugar ou gera uma chave temporária
+  const nSeqEvento = xml.getElementsByTagName("nSeqEvento");
+  if (nSeqEvento.length > 0) {
+    values.nSeqEvento = nSeqEvento[0].textContent;
+  }
+
   if (!values.chave || values.chave.trim() === "") {
     const idAttr = xml.querySelector("infNFe")?.getAttribute("Id") || "";
-    values.chave = idAttr.replace(/^NFe/, "") || crypto.randomUUID(); // Gera chave única
+    values.chave = idAttr.replace(/^NFe/, "") || crypto.randomUUID();
   }
 
   if (!values.cnpj || values.cnpj.trim() === "") {
@@ -723,7 +836,6 @@ function extractXMLValues(xml) {
 
   return values;
 }
-
 
 function determineDocumentType(xml, values) {
   if (values.justificativa && values.justificativa.trim() !== "") {
