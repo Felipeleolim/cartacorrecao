@@ -11,8 +11,8 @@ let FIXED_TAGS = {
   valorNota: "vNF",
   correcao: "xCorrecao",
   justificativa: "xJust",
-  serie: "ide > serie",       // Caminho completo para <serie>
-  numeroNota: "ide > nNF"     // Caminho completo para <nNF>
+  serie: "ide > serie",
+  numeroNota: "ide > nNF"
 };
 
 let VENDEDORES = [
@@ -38,6 +38,7 @@ let appState = {
   lastOperation: null,
   vendedoresSelecionados: {},
   currentTab: "carta",
+  editandoVendedores: false,
   files: [],
   results: {
     carta: [],
@@ -98,8 +99,30 @@ const DOM = {
 };
 
 // =============================================
-// FUNÇÕES PRINCIPAIS
+// FUNÇÕES AUXILIARES
 // =============================================
+
+function createVendedorDropdown(chave, fileName) {
+  const dropdownId = `vendedor-${chave}`;
+  const vendedorSalvo = appState.vendedoresSelecionados[chave];
+  const vendedorAtual = vendedorSalvo || "Sem Vendedor Selecionado";
+  const classeExtra = vendedorSalvo ? 'vendedor-definido' : '';
+  const disabledAttr = vendedorSalvo && !appState.editandoVendedores ? 'disabled' : '';
+  
+  return `
+    <select id="${dropdownId}" 
+            data-chave="${chave}" 
+            data-file="${fileName}" 
+            class="vendedor-dropdown ${classeExtra}"
+            ${disabledAttr}>
+      ${VENDEDORES.map(v => `
+        <option value="${v}" ${v === vendedorAtual ? 'selected' : ''}>
+          ${v}
+        </option>
+      `).join('')}
+    </select>
+  `;
+}
 
 function formatDate(dateString) {
   if (!dateString || typeof dateString !== 'string') return "-";
@@ -125,281 +148,6 @@ function formatDate(dateString) {
   
   return "-";
 }
-
-function exportToExcel(tableId, fileName) {
-  try {
-    const table = document.getElementById(tableId);
-    const clone = table.cloneNode(true);
-    
-    // Processa todas as células para garantir formato limpo
-    clone.querySelectorAll('td').forEach(cell => {
-      const content = cell.textContent.trim();
-      
-      if (content.match(/^(\d{2}\/\d{2}\/\d{4})$/) || content.match(/^(\d{4}-\d{2}-\d{2})$/)) {
-        cell.textContent = `'${formatDate(content)}`;
-      }
-    });
-    
-    clone.querySelectorAll('td').forEach(cell => {
-      const content = cell.textContent.trim();
-      
-      if (content.match(/^(\d{2}\/\d{2}\/\d{4}) (\d{2}:\d{2}:\d{2})$/)) {
-        cell.textContent = content.split(' ')[0];
-      }
-      else if (content.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/)) {
-        const [datePart] = content.split(' ');
-        const [year, month, day] = datePart.split('-');
-        cell.textContent = `${day}/${month}/${year}`;
-      }
-    });
-
-    // Processa os dropdowns de vendedores - pega o valor fixado ou o selecionado
-    clone.querySelectorAll('select.vendedor-dropdown').forEach(dropdown => {
-      const chave = dropdown.dataset.chave;
-      const vendedor = appState.vendedoresSelecionados[chave] || dropdown.options[dropdown.selectedIndex].text;
-      const parentTd = dropdown.parentElement;
-      parentTd.innerHTML = vendedor;
-    });
-
-    const workbook = XLSX.utils.table_to_book(clone);
-    const exportDate = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-    XLSX.writeFile(workbook, `${fileName}_${exportDate}.xlsx`);
-    showAlert("Exportação concluída com sucesso!", "success");
-  } catch (error) {
-    console.error("Erro na exportação:", error);
-    showAlert("Falha ao exportar para Excel", "error");
-  }
-}
-
-// =============================================
-// FUNÇÕES DE PROCESSAMENTO
-// =============================================
-
-function init() {
-  checkXLSXSupport();
-  setupEventListeners();
-  setupDateFilters();
-  checkEmptyTables();
-  updateStatus("Aguardando arquivos XML...");
-  loadSettings();
-  
-  setTimeout(() => {
-    document.getElementById(`aba-${appState.currentTab}`).classList.add("ativa");
-    document.getElementById(`aba-${appState.currentTab}`).style.opacity = 1;
-  }, 100);
-}
-
-function setupEventListeners() {
-  DOM.tabs.buttons.forEach(btn => {
-    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-  });
-  
-  DOM.addTagBtn.addEventListener("click", addCustomTag);
-  DOM.customTagInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") addCustomTag();
-  });
-  
-  DOM.fileInput.addEventListener("change", handleFileSelection);
-  
-  DOM.dropZone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    DOM.dropZone.classList.add("active");
-  });
-  
-  DOM.dropZone.addEventListener("dragleave", () => {
-    DOM.dropZone.classList.remove("active");
-  });
-  
-  DOM.dropZone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    DOM.dropZone.classList.remove("active");
-    handleDroppedFiles(e.dataTransfer.files);
-  });
-  
-  DOM.processBtn.addEventListener("click", processFiles);
-  setupExportButtons();
-  setupSearchInputs();
-  document.getElementById("salvarVendedores")?.addEventListener("click", salvarVendedores);
-  document.getElementById("editarVendedores")?.addEventListener("click", editarVendedores);
-}
-
-async function processFiles() {
-  if (appState.files.length === 0) {
-    showAlert("Nenhum arquivo selecionado para processar", "error");
-    return;
-  }
-  
-  try {
-    const results = await processFolder(appState.files);
-    appState.results = results;
-    populateTables(results);
-    showAlert("Processamento concluído com sucesso!", "success");
-    updateStatus(`Processamento concluído. ${appState.files.length} arquivos processados.`, true);
-    appState.lastOperation = new Date();
-    saveSettings();
-  } catch (error) {
-    console.error("Erro ao processar arquivos:", error);
-    showAlert("Ocorreu um erro ao processar os arquivos", "error");
-    updateStatus("Erro ao processar arquivos");
-  }
-}
-
-async function processFolder(files) {
-  showSpinner();
-  updateStatus(`Processando ${files.length} arquivos...`);
-  
-  const results = {
-    carta: [],
-    cancelamento: [],
-    devolucao: []
-  };
-  
-  for (const file of files) {
-    if (file.name.endsWith('.xml')) {
-      try {
-        const xmlData = await readFileAsText(file);
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlData, "text/xml");
-        
-        const values = extractXMLValues(xmlDoc);
-        const docType = determineDocumentType(xmlDoc, values);
-        
-        results[docType].push({
-          ...values,
-          fileName: file.name,
-          rawDate: values.dataEvento
-        });
-        
-        updateStatus(`Processado: ${file.name}`);
-      } catch (error) {
-        console.error(`Erro ao processar ${file.name}:`, error);
-        showAlert(`Erro ao processar ${file.name}`, "error");
-      }
-    }
-  }
-  
-  hideSpinner();
-  return results;
-}
-
-function extractXMLValues(xml) {
-  const values = {};
-  
-  for (const [key, selector] of Object.entries(FIXED_TAGS)) {
-    const value = getXMLValue(xml, selector);
-    
-    if (key === 'dataEvento') {
-      values[key] = value ? value.split(' ')[0] : "";
-    } else {
-      values[key] = value;
-    }
-  }
-  
-  if (!values.cnpj || values.cnpj.trim() === "") {
-    values.cnpj = getXMLValue(xml, "CNPJ") || 
-                 getXMLValue(xml, "emit > CNPJ") || 
-                 getXMLValue(xml, "dest > CNPJ") || 
-                 getXMLValue(xml, "rem > CNPJ");
-  }
-  
-  for (const tag of customTags) {
-    values[tag] = getXMLValue(xml, tag);
-  }
-  
-  return values;
-}
-
-function determineDocumentType(xml, values) {
-  if (values.justificativa && values.justificativa.trim() !== "") {
-    return "cancelamento";
-  }
-  
-  const motivo = values.motivo ? values.motivo.toLowerCase() : "";
-  const xEvento = xml.getElementsByTagName("infEvento")[0]?.getAttribute("xEvento")?.toLowerCase() || "";
-  
-  const isDevolucao = 
-    motivo.includes("devolução") || motivo.includes("devolucao") ||
-    xEvento.includes("devolução") || xEvento.includes("devolucao") ||
-    motivo.includes("retorno") || motivo.includes("devolvido");
-  
-  return isDevolucao ? "devolucao" : "carta";
-}
-
-// =============================================
-// FUNÇÕES DE TABELA
-// =============================================
-
-function populateTables(results) {
-  populateTable("carta", results.carta, (item) => [
-    formatDate(item.dataEvento),
-    extractNotaFiscal(item.chave),
-    extractSerie(item.chave),
-    formatCNPJ(item.cnpj),
-    item.correcao || "-",
-    item.fileName
-  ]);
-  
-  populateTable("cancelamento", results.cancelamento, (item) => [
-    formatDate(item.dataEvento),
-    extractNotaFiscal(item.chave),
-    extractSerie(item.chave),
-    formatCNPJ(item.cnpj),
-    item.justificativa || "-",
-    item.fileName
-  ]);
-  
-  populateTable("devolucao", results.devolucao, (item) => [
-    formatDate(item.dataEmissao || item.dataEvento),  // Data
-    item.serie || "-",                               // Série direta do XML (<serie>)
-    item.numeroNota || "-",                          // Número da nota (<nNF>)
-    formatCNPJ(item.cnpj),                           // CNPJ (mantido)
-    item.nome || "-",                                // Nome do destinatário
-    item.motivo || "-",                              // Motivo
-    item.valorNota ? `R$ ${parseFloat(item.valorNota).toFixed(2)}` : "-", // Valor
-    createVendedorDropdown(item.chave, item.fileName), // Vendedor (dropdown)
-    item.fileName                                    // Nome do arquivo
-  ]);
-
-  // Atualiza os dropdowns com os valores salvos
-  setTimeout(() => {
-    document.querySelectorAll('.vendedor-dropdown').forEach(dropdown => {
-      const chave = dropdown.dataset.chave;
-      if (appState.vendedoresSelecionados[chave]) {
-        dropdown.value = appState.vendedoresSelecionados[chave];
-        dropdown.classList.add('vendedor-definido');
-      }
-      
-      dropdown.addEventListener('change', function() {
-        if (this.value !== "Sem Vendedor Selecionado") {
-          this.classList.add('vendedor-definido');
-        } else {
-          this.classList.remove('vendedor-definido');
-        }
-      });
-    });
-  }, 100);
-  
-  checkEmptyTables();
-}
-
-function populateTable(type, items, rowMapper) {
-  const tableBody = DOM.tables[type].querySelector("tbody");
-  tableBody.innerHTML = "";
-  
-  items.forEach(item => {
-    const row = document.createElement("tr");
-    rowMapper(item).forEach(cellContent => {
-      const cell = document.createElement("td");
-      cell.innerHTML = cellContent;
-      row.appendChild(cell);
-    });
-    tableBody.appendChild(row);
-  });
-}
-
-// =============================================
-// FUNÇÕES AUXILIARES
-// =============================================
 
 function parseDate(dateString) {
   if (!dateString || dateString === "-") return null;
@@ -458,29 +206,133 @@ function extractSerie(chave) {
   return chave.length >= 25 ? chave.substring(22, 25) : "-";
 }
 
-function createVendedorDropdown(chave, fileName) {
-  const dropdownId = `vendedor-${chave}`;
-  const vendedorSalvo = appState.vendedoresSelecionados[chave];
-  const vendedorAtual = vendedorSalvo || "Sem Vendedor Selecionado";
-  const classeExtra = vendedorSalvo ? 'vendedor-definido' : '';
+// =============================================
+// FUNÇÕES DE TABELA
+// =============================================
+
+function populateTables(results) {
+  populateTable("carta", results.carta, (item) => [
+    formatDate(item.dataEvento),
+    extractNotaFiscal(item.chave),
+    extractSerie(item.chave),
+    formatCNPJ(item.cnpj),
+    item.correcao || "-",
+    item.fileName
+  ]);
   
-  return `
-    <select id="${dropdownId}" 
-            data-chave="${chave}" 
-            data-file="${fileName}" 
-            class="vendedor-dropdown ${classeExtra}">
-      ${VENDEDORES.map(v => `
-        <option value="${v}" ${v === vendedorAtual ? 'selected' : ''}>
-          ${v}
-        </option>
-      `).join('')}
-    </select>
-  `;
+  populateTable("cancelamento", results.cancelamento, (item) => [
+    formatDate(item.dataEvento),
+    extractNotaFiscal(item.chave),
+    extractSerie(item.chave),
+    formatCNPJ(item.cnpj),
+    item.justificativa || "-",
+    item.fileName
+  ]);
+  
+  populateTable("devolucao", results.devolucao, (item) => [
+    formatDate(item.dataEmissao || item.dataEvento),
+    item.serie || "-",
+    item.numeroNota || "-",
+    formatCNPJ(item.cnpj),
+    item.nome || "-",
+    item.motivo || "-",
+    item.valorNota ? `R$ ${parseFloat(item.valorNota).toFixed(2)}` : "-",
+    createVendedorDropdown(item.chave, item.fileName),
+    item.fileName
+  ]);
+
+  // Atualiza os dropdowns com os valores salvos
+  setTimeout(() => {
+    document.querySelectorAll('.vendedor-dropdown').forEach(dropdown => {
+      const chave = dropdown.dataset.chave;
+      if (appState.vendedoresSelecionados[chave]) {
+        dropdown.value = appState.vendedoresSelecionados[chave];
+        dropdown.classList.add('vendedor-definido');
+        if (!appState.editandoVendedores) {
+          dropdown.disabled = true;
+        }
+      }
+      
+      dropdown.addEventListener('change', function() {
+        if (this.value !== "Sem Vendedor Selecionado") {
+          this.classList.add('vendedor-definido');
+        } else {
+          this.classList.remove('vendedor-definido');
+        }
+      });
+    });
+  }, 100);
+  
+  checkEmptyTables();
+}
+
+function populateTable(type, items, rowMapper) {
+  const tableBody = DOM.tables[type].querySelector("tbody");
+  tableBody.innerHTML = "";
+  
+  items.forEach(item => {
+    const row = document.createElement("tr");
+    rowMapper(item).forEach(cellContent => {
+      const cell = document.createElement("td");
+      cell.innerHTML = cellContent;
+      row.appendChild(cell);
+    });
+    tableBody.appendChild(row);
+  });
 }
 
 // =============================================
 // FUNÇÕES DE INTERFACE
 // =============================================
+
+function salvarVendedores() {
+  const dropdowns = document.querySelectorAll('.vendedor-dropdown');
+  let savedCount = 0;
+
+  dropdowns.forEach(dropdown => {
+    const chave = dropdown.dataset.chave;
+    const vendedor = dropdown.value;
+    
+    if (vendedor !== "Sem Vendedor Selecionado") {
+      appState.vendedoresSelecionados[chave] = vendedor;
+      savedCount++;
+      
+      dropdown.disabled = true;
+      dropdown.classList.add('vendedor-definido');
+      dropdown.classList.add('vendedor-salvo');
+      
+      setTimeout(() => {
+        dropdown.classList.remove('vendedor-salvo');
+      }, 2000);
+    } else {
+      if (appState.vendedoresSelecionados[chave]) {
+        delete appState.vendedoresSelecionados[chave];
+        dropdown.classList.remove('vendedor-definido');
+      }
+    }
+  });
+
+  appState.editandoVendedores = false;
+  saveSettings();
+  
+  if (savedCount > 0) {
+    showAlert(`${savedCount} vendedor(es) fixados com sucesso!`, "success");
+  } else {
+    showAlert("Nenhum vendedor foi selecionado para fixar", "warning");
+  }
+}
+
+function editarVendedores() {
+  appState.editandoVendedores = true;
+  const dropdowns = document.querySelectorAll('.vendedor-dropdown');
+  
+  dropdowns.forEach(dropdown => {
+    dropdown.disabled = false;
+    dropdown.style.backgroundColor = "#EFF6FF";
+  });
+  
+  showAlert("Modo de edição ativado - selecione os vendedores e clique em Salvar para fixar", "info");
+}
 
 function setupDateFilters() {
   for (const [tabName, filter] of Object.entries(DOM.filters)) {
@@ -684,48 +536,214 @@ function renderCustomTags() {
   });
 }
 
-function salvarVendedores() {
-  const dropdowns = document.querySelectorAll('.vendedor-dropdown');
-  let savedCount = 0;
+// =============================================
+// FUNÇÕES DE EXPORTAÇÃO
+// =============================================
 
-  dropdowns.forEach(dropdown => {
-    const chave = dropdown.dataset.chave;
-    const vendedor = dropdown.value;
-    
-    if (vendedor !== "Sem Vendedor Selecionado") {
-      appState.vendedoresSelecionados[chave] = vendedor;
-      savedCount++;
-      
-      // Feedback visual
-      dropdown.classList.add('vendedor-salvo');
-      setTimeout(() => {
-        dropdown.classList.remove('vendedor-salvo');
-      }, 2000);
-    } else {
-      // Remove se existir
-      if (appState.vendedoresSelecionados[chave]) {
-        delete appState.vendedoresSelecionados[chave];
+function exportToExcel(tableId, fileName) {
+  try {
+    const table = document.getElementById(tableId);
+    const clone = table.cloneNode(true);
+
+    // Corrige datas e remove dropdowns
+    clone.querySelectorAll('td').forEach(cell => {
+      const content = cell.textContent.trim();
+
+      if (/^(\d{2}\/\d{2}\/\d{4})$/.test(content) || /^(\d{4}-\d{2}-\d{2})$/.test(content)) {
+        cell.textContent = `'${formatDate(content)}`;
       }
-    }
-  });
 
-  saveSettings();
-  
-  if (savedCount > 0) {
-    showAlert(`${savedCount} vendedor(es) fixado(s) com sucesso!`, "success");
-  } else {
-    showAlert("Nenhum vendedor foi selecionado para fixar", "warning");
+      if (/^(\d{2}\/\d{2}\/\d{4}) (\d{2}:\d{2}:\d{2})$/.test(content)) {
+        cell.textContent = content.split(' ')[0];
+      } else if (/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/.test(content)) {
+        const [datePart] = content.split(' ');
+        const [year, month, day] = datePart.split('-');
+        cell.textContent = `${day}/${month}/${year}`;
+      }
+    });
+
+    // Substitui cada dropdown por texto do vendedor
+    clone.querySelectorAll('select.vendedor-dropdown').forEach(dropdown => {
+      const parentTd = dropdown.parentElement;
+      const chave = dropdown.dataset.chave;
+      const vendedor = appState.vendedoresSelecionados?.[chave] || dropdown.options[dropdown.selectedIndex].text;
+      parentTd.innerHTML = vendedor;
+    });
+
+    const workbook = XLSX.utils.table_to_book(clone);
+    const exportDate = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    XLSX.writeFile(workbook, `${fileName}_${exportDate}.xlsx`);
+    showAlert("Exportação concluída com sucesso!", "success");
+  } catch (error) {
+    console.error("Erro na exportação:", error);
+    showAlert("Falha ao exportar para Excel", "error");
   }
 }
 
-function editarVendedores() {
-  const dropdowns = document.querySelectorAll('.vendedor-dropdown');
-  dropdowns.forEach(dropdown => {
-    dropdown.style.backgroundColor = "#EFF6FF";
-    dropdown.disabled = false;
-  });
-  showAlert("Modo de edição ativado - selecione os vendedores e clique em Salvar", "info");
+
+// =============================================
+// FUNÇÕES DE PROCESSAMENTO
+// =============================================
+
+function init() {
+  checkXLSXSupport();
+  setupEventListeners();
+  setupDateFilters();
+  checkEmptyTables();
+  updateStatus("Aguardando arquivos XML...");
+  loadSettings();
+  
+  setTimeout(() => {
+    document.getElementById(`aba-${appState.currentTab}`).classList.add("ativa");
+    document.getElementById(`aba-${appState.currentTab}`).style.opacity = 1;
+  }, 100);
 }
+
+function setupEventListeners() {
+  DOM.tabs.buttons.forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+  
+  DOM.addTagBtn.addEventListener("click", addCustomTag);
+  DOM.customTagInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") addCustomTag();
+  });
+  
+  DOM.fileInput.addEventListener("change", handleFileSelection);
+  
+  DOM.dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    DOM.dropZone.classList.add("active");
+  });
+  
+  DOM.dropZone.addEventListener("dragleave", () => {
+    DOM.dropZone.classList.remove("active");
+  });
+  
+  DOM.dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    DOM.dropZone.classList.remove("active");
+    handleDroppedFiles(e.dataTransfer.files);
+  });
+  
+  DOM.processBtn.addEventListener("click", processFiles);
+  setupExportButtons();
+  setupSearchInputs();
+  document.getElementById("salvarVendedores")?.addEventListener("click", salvarVendedores);
+  document.getElementById("editarVendedores")?.addEventListener("click", editarVendedores);
+}
+
+async function processFiles() {
+  if (appState.files.length === 0) {
+    showAlert("Nenhum arquivo selecionado para processar", "error");
+    return;
+  }
+  
+  try {
+    const results = await processFolder(appState.files);
+    appState.results = results;
+    populateTables(results);
+    showAlert("Processamento concluído com sucesso!", "success");
+    updateStatus(`Processamento concluído. ${appState.files.length} arquivos processados.`, true);
+    appState.lastOperation = new Date();
+    saveSettings();
+  } catch (error) {
+    console.error("Erro ao processar arquivos:", error);
+    showAlert("Ocorreu um erro ao processar os arquivos", "error");
+    updateStatus("Erro ao processar arquivos");
+  }
+}
+
+async function processFolder(files) {
+  showSpinner();
+  updateStatus(`Processando ${files.length} arquivos...`);
+  
+  const results = {
+    carta: [],
+    cancelamento: [],
+    devolucao: []
+  };
+  
+  for (const file of files) {
+    if (file.name.endsWith('.xml')) {
+      try {
+        const xmlData = await readFileAsText(file);
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlData, "text/xml");
+        
+        const values = extractXMLValues(xmlDoc);
+        const docType = determineDocumentType(xmlDoc, values);
+        
+        results[docType].push({
+          ...values,
+          fileName: file.name,
+          rawDate: values.dataEvento
+        });
+        
+        updateStatus(`Processado: ${file.name}`);
+      } catch (error) {
+        console.error(`Erro ao processar ${file.name}:`, error);
+        showAlert(`Erro ao processar ${file.name}`, "error");
+      }
+    }
+  }
+  
+  hideSpinner();
+  return results;
+}
+
+function extractXMLValues(xml) {
+  const values = {};
+
+  for (const [key, selector] of Object.entries(FIXED_TAGS)) {
+    const value = getXMLValue(xml, selector);
+    if (key === 'dataEvento') {
+      values[key] = value ? value.split(' ')[0] : "";
+    } else {
+      values[key] = value;
+    }
+  }
+
+  // Se chave estiver vazia, tenta recuperar de outro lugar ou gera uma chave temporária
+  if (!values.chave || values.chave.trim() === "") {
+    const idAttr = xml.querySelector("infNFe")?.getAttribute("Id") || "";
+    values.chave = idAttr.replace(/^NFe/, "") || crypto.randomUUID(); // Gera chave única
+  }
+
+  if (!values.cnpj || values.cnpj.trim() === "") {
+    values.cnpj = getXMLValue(xml, "CNPJ") || 
+                 getXMLValue(xml, "emit > CNPJ") || 
+                 getXMLValue(xml, "dest > CNPJ") || 
+                 getXMLValue(xml, "rem > CNPJ");
+  }
+
+  for (const tag of customTags) {
+    values[tag] = getXMLValue(xml, tag);
+  }
+
+  return values;
+}
+
+
+function determineDocumentType(xml, values) {
+  if (values.justificativa && values.justificativa.trim() !== "") {
+    return "cancelamento";
+  }
+  
+  const motivo = values.motivo ? values.motivo.toLowerCase() : "";
+  const xEvento = xml.getElementsByTagName("infEvento")[0]?.getAttribute("xEvento")?.toLowerCase() || "";
+  
+  const isDevolucao = 
+    motivo.includes("devolução") || motivo.includes("devolucao") ||
+    xEvento.includes("devolução") || xEvento.includes("devolucao") ||
+    motivo.includes("retorno") || motivo.includes("devolvido");
+  
+  return isDevolucao ? "devolucao" : "carta";
+}
+
+// =============================================
+// FUNÇÕES DE NAVEGAÇÃO
+// =============================================
 
 async function switchTab(tabName) {
   if (appState.currentTab === tabName) return;
