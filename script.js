@@ -10,7 +10,9 @@ let FIXED_TAGS = {
   motivo: "infCpl",
   valorNota: "vNF",
   correcao: "xCorrecao",
-  justificativa: "xJust"
+  justificativa: "xJust",
+  serie: "ide > serie",       // Caminho completo para <serie>
+  numeroNota: "ide > nNF"     // Caminho completo para <nNF>
 };
 
 let VENDEDORES = [
@@ -347,15 +349,15 @@ function populateTables(results) {
   ]);
   
   populateTable("devolucao", results.devolucao, (item) => [
-    formatDate(item.dataEmissao || item.dataEvento),
-    extractNotaFiscal(item.chave),
-    extractSerie(item.chave),
-    formatCNPJ(item.cnpj),
-    item.nome || "-",
-    item.motivo || "-",
-    item.valorNota ? `R$ ${parseFloat(item.valorNota).toFixed(2)}` : "-",
-    createVendedorDropdown(item.chave, item.fileName),
-    item.fileName
+    formatDate(item.dataEmissao || item.dataEvento),  // Data
+    item.serie || "-",                               // Série direta do XML (<serie>)
+    item.numeroNota || "-",                          // Número da nota (<nNF>)
+    formatCNPJ(item.cnpj),                           // CNPJ (mantido)
+    item.nome || "-",                                // Nome do destinatário
+    item.motivo || "-",                              // Motivo
+    item.valorNota ? `R$ ${parseFloat(item.valorNota).toFixed(2)}` : "-", // Valor
+    createVendedorDropdown(item.chave, item.fileName), // Vendedor (dropdown)
+    item.fileName                                    // Nome do arquivo
   ]);
 
   // Atualiza os dropdowns com os valores salvos
