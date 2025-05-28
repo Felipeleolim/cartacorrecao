@@ -330,6 +330,7 @@ function applyFilters(items, tabName) {
   const filters = appState.filters[tabName];
   
   return items.filter(item => {
+    // Filtro de data (comum a todas as abas)
     if (filters.startDate || filters.endDate) {
       const itemDate = parseDate(item.dataEvento || item.dataEmissao);
       if (!itemDate) return false;
@@ -338,23 +339,30 @@ function applyFilters(items, tabName) {
       if (filters.endDate && itemDate > filters.endDate) return false;
     }
     
+    // Filtros específicos por aba
     switch(tabName) {
       case "carta":
-        if (filters.evento && !item.tipoEvento.includes(filters.evento)) return false;
-        if (filters.sequencia && !item.nSeqEvento?.includes(filters.sequencia)) return false;
+        if (filters.evento && !(item.tipoEvento || '').toLowerCase().includes(filters.evento.toLowerCase())) return false;
+        if (filters.sequencia && !(item.nSeqEvento || '').includes(filters.sequencia)) return false;
         break;
         
       case "cancelamento":
-        if (filters.justificativa && !item.justificativa.toLowerCase().includes(filters.justificativa.toLowerCase())) return false;
-        if (filters.nProt && !item.nProt.includes(filters.nProt)) return false;
+        if (filters.justificativa && !(item.justificativa || '').toLowerCase().includes(filters.justificativa.toLowerCase())) return false;
+        if (filters.nProt && !(item.nProt || '').includes(filters.nProt)) return false;
         break;
         
       case "devolucao":
-        if (filters.natOp && !item.natOp.toLowerCase().includes(filters.natOp.toLowerCase())) return false;
-        if (filters.CFOP && !item.CFOP.includes(filters.CFOP)) return false;
+        // Filtro por Natureza da Operação
+        if (filters.natOp && !(item.natOp || '').toLowerCase().includes(filters.natOp.toLowerCase())) return false;
         
+        // Filtro por CFOP
+        if (filters.CFOP && !(item.CFOP || '').includes(filters.CFOP)) return false;
+        
+        // Filtro por Valor
         if (filters.valorMin || filters.valorMax) {
-          const valor = parseFloat(item.valorNota) || 0;
+          const valorStr = item.valorNota ? item.valorNota.toString().replace('.', '').replace(',', '.') : '0';
+          const valor = parseFloat(valorStr) || 0;
+          
           if (filters.valorMin && valor < filters.valorMin) return false;
           if (filters.valorMax && valor > filters.valorMax) return false;
         }
@@ -420,16 +428,29 @@ function editarVendedores() {
 
 function setupDateFilters() {
   for (const [tabName, filter] of Object.entries(DOM.filters)) {
+    // Filtros de data
     filter.start?.addEventListener("change", () => updateFilterState(tabName));
     filter.end?.addEventListener("change", () => updateFilterState(tabName));
-    filter.evento?.addEventListener("input", () => updateFilterState(tabName));
-    filter.sequencia?.addEventListener("input", () => updateFilterState(tabName));
-    filter.justificativa?.addEventListener("input", () => updateFilterState(tabName));
-    filter.nProt?.addEventListener("input", () => updateFilterState(tabName));
-    filter.natOp?.addEventListener("input", () => updateFilterState(tabName));
-    filter.CFOP?.addEventListener("input", () => updateFilterState(tabName));
-    filter.valorMin?.addEventListener("input", () => updateFilterState(tabName));
-    filter.valorMax?.addEventListener("input", () => updateFilterState(tabName));
+    
+    // Filtros específicos
+    switch(tabName) {
+      case "carta":
+        filter.evento?.addEventListener("input", () => updateFilterState(tabName));
+        filter.sequencia?.addEventListener("input", () => updateFilterState(tabName));
+        break;
+        
+      case "cancelamento":
+        filter.justificativa?.addEventListener("input", () => updateFilterState(tabName));
+        filter.nProt?.addEventListener("input", () => updateFilterState(tabName));
+        break;
+        
+      case "devolucao":
+        filter.natOp?.addEventListener("input", () => updateFilterState(tabName));
+        filter.CFOP?.addEventListener("input", () => updateFilterState(tabName));
+        filter.valorMin?.addEventListener("input", () => updateFilterState(tabName));
+        filter.valorMax?.addEventListener("input", () => updateFilterState(tabName));
+        break;
+    }
     
     filter.button.addEventListener("click", () => applyFiltersAndUpdate(tabName));
     filter.reset.addEventListener("click", () => resetFilters(tabName));
@@ -440,20 +461,28 @@ function updateFilterState(tabName) {
   const domFilter = DOM.filters[tabName];
   const stateFilter = appState.filters[tabName];
   
+  // Atualiza filtros de data
   stateFilter.startDate = domFilter.start.value ? new Date(domFilter.start.value) : null;
   stateFilter.endDate = domFilter.end.value ? new Date(domFilter.end.value) : null;
   
-  if (tabName === "carta") {
-    stateFilter.evento = domFilter.evento.value;
-    stateFilter.sequencia = domFilter.sequencia.value;
-  } else if (tabName === "cancelamento") {
-    stateFilter.justificativa = domFilter.justificativa.value;
-    stateFilter.nProt = domFilter.nProt.value;
-  } else if (tabName === "devolucao") {
-    stateFilter.natOp = domFilter.natOp.value;
-    stateFilter.CFOP = domFilter.CFOP.value;
-    stateFilter.valorMin = domFilter.valorMin.value ? parseFloat(domFilter.valorMin.value) : null;
-    stateFilter.valorMax = domFilter.valorMax.value ? parseFloat(domFilter.valorMax.value) : null;
+  // Atualiza filtros específicos
+  switch(tabName) {
+    case "carta":
+      stateFilter.evento = domFilter.evento.value;
+      stateFilter.sequencia = domFilter.sequencia.value;
+      break;
+      
+    case "cancelamento":
+      stateFilter.justificativa = domFilter.justificativa.value;
+      stateFilter.nProt = domFilter.nProt.value;
+      break;
+      
+    case "devolucao":
+      stateFilter.natOp = domFilter.natOp.value;
+      stateFilter.CFOP = domFilter.CFOP.value;
+      stateFilter.valorMin = domFilter.valorMin.value ? parseFloat(domFilter.valorMin.value) : null;
+      stateFilter.valorMax = domFilter.valorMax.value ? parseFloat(domFilter.valorMax.value) : null;
+      break;
   }
 }
 
@@ -467,32 +496,39 @@ function resetFilters(tabName) {
   const domFilter = DOM.filters[tabName];
   const stateFilter = appState.filters[tabName];
   
+  // Reset campos comuns
   domFilter.start.value = "";
   domFilter.end.value = "";
-  
-  if (tabName === "carta") {
-    domFilter.evento.value = "";
-    domFilter.sequencia.value = "";
-    stateFilter.evento = "";
-    stateFilter.sequencia = "";
-  } else if (tabName === "cancelamento") {
-    domFilter.justificativa.value = "";
-    domFilter.nProt.value = "";
-    stateFilter.justificativa = "";
-    stateFilter.nProt = "";
-  } else if (tabName === "devolucao") {
-    domFilter.natOp.value = "";
-    domFilter.CFOP.value = "";
-    domFilter.valorMin.value = "";
-    domFilter.valorMax.value = "";
-    stateFilter.natOp = "";
-    stateFilter.CFOP = "";
-    stateFilter.valorMin = null;
-    stateFilter.valorMax = null;
-  }
-  
   stateFilter.startDate = null;
   stateFilter.endDate = null;
+  
+  // Reset campos específicos
+  switch(tabName) {
+    case "carta":
+      domFilter.evento.value = "";
+      domFilter.sequencia.value = "";
+      stateFilter.evento = "";
+      stateFilter.sequencia = "";
+      break;
+      
+    case "cancelamento":
+      domFilter.justificativa.value = "";
+      domFilter.nProt.value = "";
+      stateFilter.justificativa = "";
+      stateFilter.nProt = "";
+      break;
+      
+    case "devolucao":
+      domFilter.natOp.value = "";
+      domFilter.CFOP.value = "";
+      domFilter.valorMin.value = "";
+      domFilter.valorMax.value = "";
+      stateFilter.natOp = "";
+      stateFilter.CFOP = "";
+      stateFilter.valorMin = null;
+      stateFilter.valorMax = null;
+      break;
+  }
   
   populateTables(appState.results);
   showAlert(`Filtros resetados na aba ${tabName}`, "info");
@@ -807,35 +843,35 @@ function extractXMLValues(xml) {
   for (const [key, selector] of Object.entries(FIXED_TAGS)) {
     const value = getXMLValue(xml, selector);
     
-if (key === 'dataEvento' || key === 'dataEmissao') {
-  if (value) {
-    const date = new Date(value);
-    if (!isNaN(date)) {
-      const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      values[key] = `${yyyy}-${mm}-${dd}`;
+    if (key === 'dataEvento' || key === 'dataEmissao') {
+      if (value) {
+        const date = new Date(value);
+        if (!isNaN(date)) {
+          const yyyy = date.getFullYear();
+          const mm = String(date.getMonth() + 1).padStart(2, '0');
+          const dd = String(date.getDate()).padStart(2, '0');
+          values[key] = `${yyyy}-${mm}-${dd}`;
+        } else {
+          values[key] = "";
+        }
+      } else {
+        values[key] = "";
+      }
     } else {
-      values[key] = "";
-    }
-  } else {
-    values[key] = "";
-  }
-} else {
       values[key] = value;
     }
   }
 
-  const nSeqEvento = xml.getElementsByTagName("nSeqEvento");
-  if (nSeqEvento.length > 0) {
-    values.nSeqEvento = nSeqEvento[0].textContent;
-  }
-
+  // Campos adicionais específicos para devolução
+  values.nSeqEvento = getXMLValue(xml, "nSeqEvento") || "";
+  
+  // Garantir que a chave existe
   if (!values.chave || values.chave.trim() === "") {
     const idAttr = xml.querySelector("infNFe")?.getAttribute("Id") || "";
     values.chave = idAttr.replace(/^NFe/, "") || crypto.randomUUID();
   }
 
+  // Garantir que CNPJ existe
   if (!values.cnpj || values.cnpj.trim() === "") {
     values.cnpj = getXMLValue(xml, "CNPJ") || 
                  getXMLValue(xml, "emit > CNPJ") || 
@@ -843,6 +879,12 @@ if (key === 'dataEvento' || key === 'dataEmissao') {
                  getXMLValue(xml, "rem > CNPJ");
   }
 
+  // Processar valor monetário
+  if (values.valorNota) {
+    values.valorNota = values.valorNota.toString().replace('.', '').replace(',', '.');
+  }
+
+  // Tags customizadas
   for (const tag of customTags) {
     values[tag] = getXMLValue(xml, tag);
   }
