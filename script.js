@@ -893,19 +893,35 @@ function extractXMLValues(xml) {
 }
 
 function determineDocumentType(xml, values) {
-  if (values.justificativa && values.justificativa.trim() !== "") {
+  // Verifica se é Cancelamento (tem justificativa e tipo de evento 110111)
+  if (values.justificativa && values.justificativa.trim() !== "" && values.tipoEvento === "110111") {
     return "cancelamento";
   }
   
+  // Verifica se é Carta de Correção (tem correção e tipo de evento 110110)
+  if (values.correcao && values.correcao.trim() !== "" && values.tipoEvento === "110110") {
+    return "carta";
+  }
+  
+  // Verifica se é Devolução (analisa motivo, natureza da operação ou CFOP)
   const motivo = values.motivo ? values.motivo.toLowerCase() : "";
+  const natOp = values.natOp ? values.natOp.toLowerCase() : "";
   const xEvento = xml.getElementsByTagName("infEvento")[0]?.getAttribute("xEvento")?.toLowerCase() || "";
+  const cfop = values.CFOP || "";
   
   const isDevolucao = 
     motivo.includes("devolução") || motivo.includes("devolucao") ||
     xEvento.includes("devolução") || xEvento.includes("devolucao") ||
-    motivo.includes("retorno") || motivo.includes("devolvido");
+    motivo.includes("retorno") || motivo.includes("devolvido") ||
+    natOp.includes("devolução") || natOp.includes("devolucao") ||
+    cfop.startsWith("2") || cfop.startsWith("3"); // CFOPs de devolução geralmente começam com 2 ou 3
   
-  return isDevolucao ? "devolucao" : "carta";
+  if (isDevolucao) {
+    return "devolucao";
+  }
+  
+  // Se não for nenhum dos tipos esperados, retorna null
+  return null;
 }
 
 // =============================================
