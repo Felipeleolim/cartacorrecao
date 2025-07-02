@@ -352,13 +352,9 @@ function applyFilters(items, tabName) {
         break;
         
       case "devolucao":
-        // Filtro por Natureza da Operação
         if (filters.natOp && !(item.natOp || '').toLowerCase().includes(filters.natOp.toLowerCase())) return false;
-        
-        // Filtro por CFOP
         if (filters.CFOP && !(item.CFOP || '').includes(filters.CFOP)) return false;
         
-        // Filtro por Valor
         if (filters.valorMin || filters.valorMax) {
           const valorStr = item.valorNota ? item.valorNota.toString().replace('.', '').replace(',', '.') : '0';
           const valor = parseFloat(valorStr) || 0;
@@ -410,7 +406,7 @@ function salvarVendedores() {
   if (savedCount > 0) {
     showAlert(`${savedCount} vendedor(es) fixados com sucesso!`, "success");
   } else {
-    showAlert("Nenhum vendedor foi selecionado para fixar", "warning");
+    console.log("Nenhum vendedor foi selecionado para fixar");
   }
 }
 
@@ -428,11 +424,9 @@ function editarVendedores() {
 
 function setupDateFilters() {
   for (const [tabName, filter] of Object.entries(DOM.filters)) {
-    // Filtros de data
     filter.start?.addEventListener("change", () => updateFilterState(tabName));
     filter.end?.addEventListener("change", () => updateFilterState(tabName));
     
-    // Filtros específicos
     switch(tabName) {
       case "carta":
         filter.evento?.addEventListener("input", () => updateFilterState(tabName));
@@ -461,11 +455,9 @@ function updateFilterState(tabName) {
   const domFilter = DOM.filters[tabName];
   const stateFilter = appState.filters[tabName];
   
-  // Atualiza filtros de data
   stateFilter.startDate = domFilter.start.value ? new Date(domFilter.start.value) : null;
   stateFilter.endDate = domFilter.end.value ? new Date(domFilter.end.value) : null;
   
-  // Atualiza filtros específicos
   switch(tabName) {
     case "carta":
       stateFilter.evento = domFilter.evento.value;
@@ -496,13 +488,11 @@ function resetFilters(tabName) {
   const domFilter = DOM.filters[tabName];
   const stateFilter = appState.filters[tabName];
   
-  // Reset campos comuns
   domFilter.start.value = "";
   domFilter.end.value = "";
   stateFilter.startDate = null;
   stateFilter.endDate = null;
   
-  // Reset campos específicos
   switch(tabName) {
     case "carta":
       domFilter.evento.value = "";
@@ -613,7 +603,7 @@ function showAlert(message, type = "info") {
 
 function checkXLSXSupport() {
   if (!window.XLSX) {
-    showAlert("Biblioteca de exportação para Excel não carregada corretamente", "error");
+    console.error("Biblioteca de exportação para Excel não carregada corretamente");
   }
 }
 
@@ -635,7 +625,7 @@ function handleDroppedFiles(files) {
   const xmlFiles = files.filter(file => file.name.endsWith('.xml'));
   
   if (xmlFiles.length === 0) {
-    showAlert("Nenhum arquivo XML encontrado", "error");
+    console.warn("Nenhum arquivo XML encontrado nos arquivos selecionados");
     return;
   }
   
@@ -649,12 +639,12 @@ function addCustomTag() {
   const tagName = DOM.customTagInput.value.trim();
   
   if (!tagName) {
-    showAlert("Por favor, digite uma tag válida", "error");
+    console.warn("Tentativa de adicionar tag vazia");
     return;
   }
   
   if (customTags.includes(tagName)) {
-    showAlert("Esta tag já foi adicionada", "error");
+    console.warn(`Tag "${tagName}" já existe`);
     return;
   }
   
@@ -722,7 +712,6 @@ function exportToExcel(tableId, fileName) {
     showAlert("Exportação concluída com sucesso!", "success");
   } catch (error) {
     console.error("Erro na exportação:", error);
-    showAlert("Falha ao exportar para Excel", "error");
   }
 }
 
@@ -780,7 +769,7 @@ function setupEventListeners() {
 
 async function processFiles() {
   if (appState.files.length === 0) {
-    showAlert("Nenhum arquivo selecionado para processar", "error");
+    console.warn("Nenhum arquivo selecionado para processar");
     return;
   }
   
@@ -794,7 +783,6 @@ async function processFiles() {
     saveSettings();
   } catch (error) {
     console.error("Erro ao processar arquivos:", error);
-    showAlert("Ocorreu um erro ao processar os arquivos", "error");
     updateStatus("Erro ao processar arquivos");
   }
 }
@@ -819,16 +807,17 @@ async function processFolder(files) {
         const values = extractXMLValues(xmlDoc);
         const docType = determineDocumentType(xmlDoc, values);
         
-        results[docType].push({
-          ...values,
-          fileName: file.name,
-          rawDate: values.dataEvento
-        });
+        if (docType) {
+          results[docType].push({
+            ...values,
+            fileName: file.name,
+            rawDate: values.dataEvento
+          });
+        }
         
         updateStatus(`Processado: ${file.name}`);
       } catch (error) {
         console.error(`Erro ao processar ${file.name}:`, error);
-        showAlert(`Erro ao processar ${file.name}`, "error");
       }
     }
   }
@@ -862,16 +851,13 @@ function extractXMLValues(xml) {
     }
   }
 
-  // Campos adicionais específicos para devolução
   values.nSeqEvento = getXMLValue(xml, "nSeqEvento") || "";
   
-  // Garantir que a chave existe
   if (!values.chave || values.chave.trim() === "") {
     const idAttr = xml.querySelector("infNFe")?.getAttribute("Id") || "";
     values.chave = idAttr.replace(/^NFe/, "") || crypto.randomUUID();
   }
 
-  // Garantir que CNPJ existe
   if (!values.cnpj || values.cnpj.trim() === "") {
     values.cnpj = getXMLValue(xml, "CNPJ") || 
                  getXMLValue(xml, "emit > CNPJ") || 
@@ -879,12 +865,10 @@ function extractXMLValues(xml) {
                  getXMLValue(xml, "rem > CNPJ");
   }
 
-  // Processar valor monetário
   if (values.valorNota) {
     values.valorNota = values.valorNota.toString().replace('.', '').replace(',', '.');
   }
 
-  // Tags customizadas
   for (const tag of customTags) {
     values[tag] = getXMLValue(xml, tag);
   }
@@ -893,17 +877,14 @@ function extractXMLValues(xml) {
 }
 
 function determineDocumentType(xml, values) {
-  // Verifica se é Cancelamento (tem justificativa e tipo de evento 110111)
   if (values.justificativa && values.justificativa.trim() !== "" && values.tipoEvento === "110111") {
     return "cancelamento";
   }
   
-  // Verifica se é Carta de Correção (tem correção e tipo de evento 110110)
   if (values.correcao && values.correcao.trim() !== "" && values.tipoEvento === "110110") {
     return "carta";
   }
   
-  // Verifica se é Devolução (analisa motivo, natureza da operação ou CFOP)
   const motivo = values.motivo ? values.motivo.toLowerCase() : "";
   const natOp = values.natOp ? values.natOp.toLowerCase() : "";
   const xEvento = xml.getElementsByTagName("infEvento")[0]?.getAttribute("xEvento")?.toLowerCase() || "";
@@ -914,13 +895,12 @@ function determineDocumentType(xml, values) {
     xEvento.includes("devolução") || xEvento.includes("devolucao") ||
     motivo.includes("retorno") || motivo.includes("devolvido") ||
     natOp.includes("devolução") || natOp.includes("devolucao") ||
-    cfop.startsWith("2") || cfop.startsWith("3"); // CFOPs de devolução geralmente começam com 2 ou 3
+    cfop.startsWith("2") || cfop.startsWith("3");
   
   if (isDevolucao) {
     return "devolucao";
   }
   
-  // Se não for nenhum dos tipos esperados, retorna null
   return null;
 }
 
